@@ -4,7 +4,7 @@ import torch.nn as nn
 
 
 class Encoder(nn.Module):
-    def __init__(self, input_size, num_conv_volumes,
+    def __init__(self, input_size, num_conv_volumes=3,
                  kernel_size=3, conv_stride=2, conv_padding=1):
         super(Encoder, self).__init__()
 
