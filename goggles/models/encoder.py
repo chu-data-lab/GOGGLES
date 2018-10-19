@@ -4,8 +4,8 @@ import torch.nn as nn
 
 
 class Encoder(nn.Module):
-    def __init__(self, input_size, num_conv_volumes,
-                 kernel_size=2, conv_stride=2, conv_padding=0):
+    def __init__(self, input_size, num_conv_volumes=3,
+                 kernel_size=3, conv_stride=2, conv_padding=1):
         super(Encoder, self).__init__()
 
         self._input_size = input_size
@@ -13,14 +13,16 @@ class Encoder(nn.Module):
 
         layers = list()
         in_channels = 3
-        num_filters = 128
+        out_channels = 128
+        channel_growth_factor = 2
         conv_spec = (kernel_size, conv_stride, conv_padding)
         for i in range(num_conv_volumes):
-            layers.append(('conv%d' % (i + 1), nn.Conv2d(in_channels, num_filters, *conv_spec),))
+            layers.append(('conv%d' % (i + 1), nn.Conv2d(in_channels, out_channels, *conv_spec),))
             layers.append(('relu%d' % (i + 1), nn.ReLU(inplace=True),))
 
-            in_channels = num_filters
-            num_filters *= 2
+            in_channels = out_channels
+            out_channels *= channel_growth_factor
+        self.num_out_channels = out_channels / channel_growth_factor
 
         self._net = nn.Sequential(OrderedDict(layers))
 
@@ -33,11 +35,12 @@ class Encoder(nn.Module):
 if __name__ == '__main__':
     import torch
 
-    input_image_size = 128
+    input_image_size = 64
     expected_image_shape = (3, input_image_size, input_image_size)
     input_tensor = torch.autograd.Variable(torch.rand(1, *expected_image_shape))
 
-    net = Encoder(input_image_size, 4, kernel_size=2, conv_padding=0)
+    net = Encoder(input_image_size, 3, kernel_size=3, conv_stride=2, conv_padding=1)
     print net
     output_tensor = net(input_tensor)
     print output_tensor.size()
+    print net.num_out_channels

@@ -4,33 +4,33 @@ import torch.nn as nn
 
 
 class Decoder(nn.Module):
-    def __init__(self):
+    def __init__(self, num_in_channels, num_conv_volumes=3,
+                 kernel_size=4, conv_stride=2, conv_padding=1):
         super(Decoder, self).__init__()
 
-        self._net = nn.Sequential(OrderedDict([
-            # 2048x4x4 -> 1024x8x8
-            ('deconv1', nn.ConvTranspose2d(2048, 1024, 4, 2, 1)),
-            ('relu1', nn.ReLU(inplace=True)),
+        self._num_in_channels = num_in_channels
+        self._num_conv_volumes = num_conv_volumes
 
-            # 1024x8x8 -> 512x16x16
-            ('deconv2', nn.ConvTranspose2d(1024, 512, 4, 2, 1)),
-            ('relu2', nn.ReLU(inplace=True)),
+        layers = list()
+        channel_shrinkage_factor = 2
+        in_channels = num_in_channels
+        out_channels = num_in_channels / channel_shrinkage_factor
+        conv_spec = (kernel_size, conv_stride, conv_padding)
+        for i in range(num_conv_volumes - 1):
+            layers.append(('deconv%d' % (i + 1), nn.ConvTranspose2d(in_channels, out_channels, *conv_spec),))
+            layers.append(('relu%d' % (i + 1), nn.ReLU(inplace=True),))
 
-            # 512x16x16 -> 256x32x32
-            ('deconv3', nn.ConvTranspose2d(512, 256, 4, 2, 1)),
-            ('relu3', nn.ReLU(inplace=True)),
+            in_channels = out_channels
+            out_channels /= channel_shrinkage_factor
 
-            # 256x32x32 -> 128x64x64
-            ('deconv4', nn.ConvTranspose2d(256, 128, 4, 2, 1)),
-            ('relu4', nn.ReLU(inplace=True)),
+        i = num_conv_volumes
+        layers.append(('deconv%d' % i, nn.ConvTranspose2d(in_channels, 3, *conv_spec),))
+        layers.append(('tanh', nn.Tanh()))
 
-            # 128x64x64 -> 3x128x128
-            ('deconv5', nn.ConvTranspose2d(128, 3, 4, 2, 1)),
-            ('tanh', nn.Tanh())
-        ]))
+        self._net = nn.Sequential(OrderedDict(layers))
 
     def forward(self, x):
-        assert x.size()[-3:] == (2048, 4, 4)
+        assert x.size()[1] == self._num_in_channels
         return self._net(x)
 
 
@@ -38,11 +38,16 @@ if __name__ == '__main__':
     import torch
     from encoder import Encoder
 
-    enc = Encoder()
-    dec = Decoder()
+    input_image_size = 64
+    expected_image_shape = (3, input_image_size, input_image_size)
 
-    x = torch.autograd.Variable(torch.rand(10, 3, 128, 128))
+    enc = Encoder(input_image_size)
+    dec = Decoder(enc.num_out_channels)
+
+    x = torch.autograd.Variable(torch.rand(1, *expected_image_shape))
     z = enc.forward(x)
     x_ = dec.forward(z)
 
-    print x_.data.cpu().numpy()
+    print dec
+    print x_.size()
+    assert x_.size()[-3:] == expected_image_shape
