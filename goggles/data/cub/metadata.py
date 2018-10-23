@@ -1,7 +1,5 @@
 import os
 
-from constants import *
-
 
 class _NamedClass(object):
     def __init__(self, name):
@@ -36,7 +34,7 @@ class AttributeAnnotation(Attribute):
 
 
 class Datum(object):
-    def __init__(self, id_, path, species, attribute_annotations=None):
+    def __init__(self, id_, path, species, attribute_annotations=None, is_for_training=False):
         if attribute_annotations is None:
             attribute_annotations = set()
         assert type(attribute_annotations) is set
@@ -47,6 +45,7 @@ class Datum(object):
         self.path = path
         self.species = species
         self.attribute_annotations = attribute_annotations
+        self.is_for_training = is_for_training
 
     def add_attribute_annotation(self, attribute_annotation):
         assert isinstance(attribute_annotation, AttributeAnnotation)
@@ -55,6 +54,9 @@ class Datum(object):
 
     def attribute_is_present(self, attribute):
         return attribute in self.attribute_annotations
+
+    def set_for_training(self, is_for_training=True):
+        self.is_for_training = is_for_training
 
 
 class Species(_NamedClass):
@@ -76,7 +78,7 @@ class Species(_NamedClass):
         self.attributes.add(attribute)
 
 
-def load_cub_data(cub_data_dir):
+def load_cub_metadata(cub_data_dir):
     attributes_by_id = dict()
     attributes_file = os.path.join(cub_data_dir, 'attributes.txt')
     with open(attributes_file, 'r') as f:
@@ -86,7 +88,7 @@ def load_cub_data(cub_data_dir):
             attributes_by_id[id_] = Attribute(id_, name)
 
     species_by_id = dict()
-    species_file = os.path.join(cub_data_dir, 'classes.txt')
+    species_file = os.path.join(cub_data_dir, 'CUB_200_2011', 'classes.txt')
     with open(species_file, 'r') as f:
         for l in f.readlines():
             id_, name = l.strip().split()
@@ -94,7 +96,7 @@ def load_cub_data(cub_data_dir):
             species_by_id[id_] = Species(id_, name)
 
     datum_by_id = dict()
-    datum_file = os.path.join(cub_data_dir, 'images.txt')
+    datum_file = os.path.join(cub_data_dir, 'CUB_200_2011', 'images.txt')
     with open(datum_file, 'r') as f:
         for l in f.readlines():
             id_, path = l.strip().split()
@@ -104,12 +106,20 @@ def load_cub_data(cub_data_dir):
             species = species_by_id[species_id]
             datum_by_id[id_] = Datum(id_, path, species)
 
+    split_file = os.path.join(cub_data_dir, 'CUB_200_2011', 'train_test_split.txt')
+    with open(split_file, 'r') as f:
+        for l in f.readlines():
+            id_, is_for_training = l.strip().split()
+            id_ = int(id_)
+            is_for_training = int(is_for_training) == 1
+            datum_by_id[id_].set_for_training(is_for_training)
+
     higher_order_attributes = set(a.higher_order_name for a in attributes_by_id.values())
     higher_order_attribute_ids = {
         ha: [i for i, a in attributes_by_id.items() if ha in str(a)]
         for ha in higher_order_attributes}
     species_attributes_file = os.path.join(
-        cub_data_dir, 'attributes', 'class_attribute_labels_continuous.txt')
+        cub_data_dir, 'CUB_200_2011', 'attributes', 'class_attribute_labels_continuous.txt')
     with open(species_attributes_file) as f:
         for i, l in enumerate(f.readlines()):
             species_id = i + 1
@@ -121,7 +131,7 @@ def load_cub_data(cub_data_dir):
                         species_by_id[species_id].add_attribute(attributes_by_id[a_id])
 
     certainties_by_id = {1: 'not visible', 2: 'guessing', 3: 'probably', 4: 'definitely'}
-    image_attributes_file = os.path.join(cub_data_dir, 'attributes', 'image_attribute_labels.txt')
+    image_attributes_file = os.path.join(cub_data_dir, 'CUB_200_2011', 'attributes', 'image_attribute_labels.txt')
     with open(image_attributes_file, 'r') as f:
         for l in f.readlines():
             datum_id, attr_id, is_present, certainty = tuple(map(int, l.strip().split()[:4]))
@@ -131,7 +141,9 @@ def load_cub_data(cub_data_dir):
                                            certainties_by_id[certainty])
                 datum_by_id[datum_id].add_attribute_annotation(attr)
 
-    return list(species_by_id.values()), list(datum_by_id.values())
+    return list(species_by_id.values()), list(attributes_by_id.values()), list(datum_by_id.values())
 
 if __name__ == '__main__':
-    load_cub_data(CUB_DATA_DIR)
+    from goggles.constants import *
+
+    print load_cub_metadata(CUB_DATA_DIR)
