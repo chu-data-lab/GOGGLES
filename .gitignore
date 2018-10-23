@@ -4,4 +4,5 @@ __MACOSX
 *.pyc
 
 .idea/
-data/
+/data/
+/out/

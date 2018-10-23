@@ -1,1 +1,1 @@
-CUB_DATA_DIR = '../data/CUB_200_2011'
+CUB_DATA_DIR = '/Users/nilakshdas/Box/dev/GOGGLES/data/CUB_200_2011'
