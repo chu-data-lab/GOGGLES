@@ -1,18 +1,23 @@
 import os
 
+from joblib import Memory
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
 
+from goggles.constants import CACHE_DIR
 from metadata import load_cub_metadata
 
 
 class CUBDataset(Dataset):
-    def __init__(self, root, species1_id, species2_id, transform=None, is_training=False):
+    def __init__(self, root, species1_id, species2_id, transform=None, is_training=False, cachedir=CACHE_DIR):
         super(CUBDataset, self).__init__()
 
+        mem = Memory(cachedir)
+        metadata_loader = mem.cache(load_cub_metadata)
+
         self._data_dir = root
-        all_species, all_attributes, all_images_data = load_cub_metadata(root)
+        all_species, all_attributes, all_images_data = metadata_loader(root)
 
         self._species1 = filter(lambda s: s.id == species1_id, all_species)[0]
         self._species2 = filter(lambda s: s.id == species2_id, all_species)[0]
@@ -47,20 +52,21 @@ class CUBDataset(Dataset):
         image = Image.open(image_file)
         image = self._transform(image)
 
-        label = 0 if datum.species is self._species1 else 1
+        label = 0 if datum.species.name == self._species1.name else 1
 
         attributes = list()
         for attr in datum.attribute_annotations:
             if attr in self._attributes:
-                attributes.append(self._attributes.index(attr))
-        attributes = sorted(attributes)
+                attributes.append(self._attributes.index(attr) + 1)  # attributes are 1-indexed
+        num_nonzero_attributes = len(attributes)
+        attributes = sorted(attributes) + ([0] * (self.num_attributes - len(attributes)))  # 0's added for padding
 
-        return image, label, attributes
+        return image, label, attributes, num_nonzero_attributes
 
 
 if __name__ == '__main__':
     from goggles.constants import *
 
-    dataset = CUBDataset(CUB_DATA_DIR, 1, 2)
+    dataset = CUBDataset(CUB_DATA_DIR, 14, 90, is_training=True)
     for d, l, a in dataset:
         print d.size(), l, a
