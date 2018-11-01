@@ -2,6 +2,7 @@ import os
 
 from joblib import Memory
 from PIL import Image
+import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
@@ -63,10 +64,34 @@ class CUBDataset(Dataset):
 
         return image, label, attributes, num_nonzero_attributes
 
+    @staticmethod
+    def custom_collate_fn(batch):
+        batch = zip(*batch)  # transpose
+
+        image, label, attributes, \
+            num_nonzero_attributes = batch
+
+        image = torch.stack(image)
+        label = torch.LongTensor(label)
+        attributes = torch.stack([torch.LongTensor(a) for a in attributes])
+        padding_idx = torch.LongTensor(num_nonzero_attributes)
+
+        return image, label, attributes, padding_idx
+
+    def get_attribute_name_for_attribute_idx(self, attribute_idx):
+        return self._attributes[attribute_idx - 1].name  # attributes are 1-indexed
+
 
 if __name__ == '__main__':
-    from goggles.constants import *
+    data_dir = '/Users/nilakshdas/Dev/GOGGLES/data/CUB_200_2011'
 
-    dataset = CUBDataset(CUB_DATA_DIR, 14, 90, is_training=True)
-    for d, l, a in dataset:
-        print d.size(), l, a
+    train_dataset = CUBDataset(data_dir, 14, 90, is_training=True)
+    test_dataset = CUBDataset(data_dir, 14, 90, is_training=True)
+
+    assert train_dataset.num_attributes == test_dataset.num_attributes
+    for i in range(train_dataset.num_attributes):
+        assert train_dataset._attributes[i] == test_dataset._attributes[i]
+        print train_dataset._attributes[i], test_dataset._attributes[i]
+
+    # for d, l, a, _ in dataset:
+    #     print d.size(), l, a
