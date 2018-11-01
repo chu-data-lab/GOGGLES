@@ -5,14 +5,14 @@ class Patch(nn.Module):
     def __init__(self, corner_idx, patch_size):
         super(Patch, self).__init__()
 
-        self._corner_idx = corner_idx  # NW corner index
-        self._patch_size = patch_size
+        self.corner_idx = corner_idx  # NW corner index
+        self.patch_size = patch_size
 
         self.i_nw, self.j_nw = corner_idx
 
     def forward(self, z):
-        i_nw, j_nw = self._corner_idx
-        patch_w, patch_h = self._patch_size
+        i_nw, j_nw = self.corner_idx
+        patch_w, patch_h = self.patch_size
         i_se, j_se = (i_nw + patch_h - 1,
                       j_nw + patch_w - 1)
 
