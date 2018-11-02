@@ -6,8 +6,15 @@ import numpy as np
 from PIL import Image
 
 
+plt.switch_backend('agg')
+
+
 def get_image_from_tensor(x):
-    image = x.data.cpu().numpy()[0]
+    image = x.data.cpu().numpy()
+
+    if len(image.shape) == 4:
+        image = image[0]
+
     image = 255. * (0.5 + (image / 2.))
     image = np.array(image, dtype=np.uint8)
     image = np.swapaxes(image, 0, 1)
@@ -17,8 +24,7 @@ def get_image_from_tensor(x):
     return image
 
 
-def save_prototype_patch_visualization(model, dataset, outdir):
-    prototype_patches = model.get_nearest_dataset_patches_for_prototypes(dataset)
+def save_prototype_patch_visualization(model, dataset, prototype_patches, outdir):
     for prototype_idx, ((image_idx, patch_idx), nearest_patch) in prototype_patches.items():
         attribute_name = dataset.get_attribute_name_for_attribute_idx(prototype_idx)
         (i_nw, j_nw), (patch_w, patch_h) = model.get_receptive_field(patch_idx)
@@ -39,4 +45,4 @@ def save_prototype_patch_visualization(model, dataset, outdir):
                 edgecolor='r',
                 facecolor='none'))
 
-        fig.savefig(os.path.join(outdir, '%s.png' % attribute_name))
+        fig.savefig(os.path.join(outdir, '%s.png' % attribute_name.replace('::', '-')))

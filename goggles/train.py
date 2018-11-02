@@ -4,8 +4,6 @@ except ImportError:
     ifilter = filter
 import os
 
-import numpy as np
-from PIL import Image
 import torch
 from torch.utils.data import DataLoader
 import torch.optim as optim
@@ -16,7 +14,7 @@ from constants import *
 from data.cub.dataset import CUBDataset
 from loss import my_loss_function
 from models.semantic_ae import SemanticAutoencoder
-from utils.vis import get_image_from_tensor
+from utils.vis import get_image_from_tensor, save_prototype_patch_visualization
 
 
 is_cuda = torch.cuda.is_available()
@@ -27,14 +25,14 @@ def load_datasets(input_image_size, *dataset_args):
     assert len(dataset_args) == 3
 
     transform_random_flip = transforms.RandomHorizontalFlip()
-    transform_scale = transforms.Scale((input_image_size, input_image_size))
+    transform_resize = transforms.Resize((input_image_size, input_image_size))
     transform_to_tensor = transforms.ToTensor()
     transform_normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
     random_transformation = transforms.Compose([
-        transform_random_flip, transform_scale, transform_to_tensor, transform_normalize])
+        transform_random_flip, transform_resize, transform_to_tensor, transform_normalize])
     deterministic_transformation = transforms.Compose([
-        transform_scale, transform_to_tensor, transform_normalize])
+        transform_resize, transform_to_tensor, transform_normalize])
 
     train_dataset_random = CUBDataset(
         *dataset_args, transform=random_transformation, is_training=True)
@@ -68,6 +66,8 @@ def main():
         patch_size,
         train_dataset_random.num_attributes))
 
+    prototype_patches = None
+
     optimizer = optim.Adam(ifilter(lambda p: p.requires_grad, model.parameters()))
 
     pbar = tqdm(range(1, num_epochs + 1))
@@ -93,7 +93,15 @@ def main():
         pbar.set_description('average_epoch_loss=%0.05f' % (epoch_loss / i))
 
         if (epoch % 5 == 0) or (epoch == num_epochs):
-            model.reproject_prototypes_to_dataset(train_dataset_deterministic)
+            prototype_patches = \
+                model.get_nearest_dataset_patches_for_prototypes(
+                    train_dataset_deterministic)
+            model.reproject_prototypes(prototype_patches)
+
+            save_prototype_patch_visualization(
+                model, test_dataset,
+                prototype_patches,
+                '../out/prototypes/')
 
         for i, (image, label, attributes, _) in enumerate(test_dataset):
             x = image.view((1,) + image.size())

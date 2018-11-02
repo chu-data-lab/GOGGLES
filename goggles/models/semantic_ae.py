@@ -71,9 +71,7 @@ class SemanticAutoencoder(nn.Module):
 
         return prototype_patches
 
-    def reproject_prototypes_to_dataset(self, dataset):
-        prototype_patches = self.get_nearest_dataset_patches_for_prototypes(dataset)
-
+    def reproject_prototypes(self, prototype_patches):
         for k, (nearest_image_patch_idx, nearest_patch) in prototype_patches.items():
             self.prototypes.weight[k].data = torch.FloatTensor(nearest_patch)
 
@@ -90,9 +88,9 @@ if __name__ == '__main__':
     input_tensor = torch.autograd.Variable(torch.rand(5, *expected_image_shape))
 
     net = SemanticAutoencoder(input_image_size, 1, 10)
-    print net
-    for p in ifilter(lambda p: p.requires_grad, net.parameters()):
-        print p.size()
+    print net.state_dict()
+    # for p in ifilter(lambda p: p.requires_grad, net.parameters()):
+    #     print p.size()
     # print
     # z, z_patches, reconstructed_x = net(input_tensor)
     # print z.size()
@@ -100,4 +98,4 @@ if __name__ == '__main__':
     # print z_patches[0].size()
     # print len(z_patches)
 
-    print net.prototypes.weight[1]
+    # print net.prototypes.weight[1]
