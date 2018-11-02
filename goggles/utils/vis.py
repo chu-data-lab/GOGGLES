@@ -46,3 +46,4 @@ def save_prototype_patch_visualization(model, dataset, prototype_patches, outdir
                 facecolor='none'))
 
         fig.savefig(os.path.join(outdir, '%s.png' % attribute_name.replace('::', '-')))
+        plt.close()

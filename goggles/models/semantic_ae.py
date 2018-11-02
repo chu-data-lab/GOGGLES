@@ -6,6 +6,7 @@ from encoder import Encoder
 from decoder import Decoder
 from patch import Patch
 from prototype import Prototypes
+from receptive_field import ReceptiveField
 
 
 class SemanticAutoencoder(nn.Module):
@@ -29,8 +30,8 @@ class SemanticAutoencoder(nn.Module):
         self.prototypes.weight.requires_grad = False  # freeze embeddings
 
     def cuda(self, device_id=None):
-        super(SemanticAutoencoder, self).cuda(device_id)
         self._is_cuda = True
+        return super(SemanticAutoencoder, self).cuda(device_id)
 
     def forward(self, x):
         z = self._encoder_net(x)
@@ -78,7 +79,11 @@ class SemanticAutoencoder(nn.Module):
         return prototype_patches
 
     def get_receptive_field(self, patch_idx):
-        return (0, 0), (50, 50)
+        receptive_field = ReceptiveField(64, 3, 3, 2, 1)
+        patch_instance = self._patches[patch_idx]
+        i, j = patch_instance.corner_idx
+        (i_nw, j_nw), (i_se, j_se) = receptive_field.get_patch_rf(i, j, 1)
+        return (i_nw, j_nw), (i_se - i_nw, j_se - j_nw)
 
 
 if __name__ == '__main__':

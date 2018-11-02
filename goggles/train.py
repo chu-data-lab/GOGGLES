@@ -25,7 +25,7 @@ def load_datasets(input_image_size, *dataset_args):
     assert len(dataset_args) == 3
 
     transform_random_flip = transforms.RandomHorizontalFlip()
-    transform_resize = transforms.Resize((input_image_size, input_image_size))
+    transform_resize = transforms.Scale((input_image_size, input_image_size))
     transform_to_tensor = transforms.ToTensor()
     transform_normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
 
@@ -103,13 +103,13 @@ def main():
                 prototype_patches,
                 '../out/prototypes/')
 
-        for i, (image, label, attributes, _) in enumerate(test_dataset):
-            x = image.view((1,) + image.size())
-            x = put_on_gpu(torch.autograd.Variable(x))
-            z, z_patches, reconstructed_x = model(x)
+            for i, (image, label, attributes, _) in enumerate(test_dataset):
+                x = image.view((1,) + image.size())
+                x = put_on_gpu(torch.autograd.Variable(x))
+                z, z_patches, reconstructed_x = model(x)
 
-            reconstructed_image = get_image_from_tensor(reconstructed_x)
-            reconstructed_image.save(os.path.join(OUT_DIR, 'images', '%d-%d.png' % (epoch, i)))
+                reconstructed_image = get_image_from_tensor(reconstructed_x)
+                reconstructed_image.save(os.path.join(OUT_DIR, 'images', '%d-%d.png' % (epoch, i)))
 
     torch.save(model, os.path.join(MODEL_DIR, 'model.pt'))
 

@@ -65,8 +65,8 @@ class ReceptiveField(nn.Module):
 if __name__ == '__main__':
     import torch
 
-    input_image_size = 5
+    input_image_size = 128
 
-    rf = ReceptiveField( input_image_size, 2, 2, 2, 1)
+    rf = ReceptiveField( input_image_size, 3, 3, 2, 1)
     # print(rf.get_receptive_field_indices(1, 1, input_image_size))
-    print(rf.get_patch_rf(0, 0, 2))
+    print(rf.get_patch_rf(4, 5, 1))
