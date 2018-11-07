@@ -6,7 +6,6 @@ from encoder import Encoder
 from decoder import Decoder
 from patch import Patch
 from prototype import Prototypes
-from receptive_field import ReceptiveField
 
 
 class SemanticAutoencoder(nn.Module):
@@ -14,10 +13,13 @@ class SemanticAutoencoder(nn.Module):
         super(SemanticAutoencoder, self).__init__()
         self._is_cuda = False
 
+        self.input_size = input_size
+        self.encoded_patch_size = encoded_patch_size
         self.num_prototypes = num_prototypes
 
         self._encoder_net = Encoder(input_size)
         self._decoder_net = Decoder(self._encoder_net.num_out_channels)
+
 
         encoded_output_size = self._encoder_net.output_size
         assert encoded_patch_size < encoded_output_size
@@ -79,11 +81,32 @@ class SemanticAutoencoder(nn.Module):
         return prototype_patches
 
     def get_receptive_field(self, patch_idx):
-        receptive_field = ReceptiveField(64, 3, 3, 2, 1)
-        patch_instance = self._patches[patch_idx]
-        i, j = patch_instance.corner_idx
-        (i_nw, j_nw), (i_se, j_se) = receptive_field.get_patch_rf(i, j, 1)
-        return (i_nw, j_nw), (i_se - i_nw, j_se - j_nw)
+        put_on_gpu = lambda x_: x_.cuda() if self._is_cuda else x_
+
+        self.zero_grad()
+
+        image_size = self.input_size
+        batch_shape = (1, 3, image_size, image_size)
+
+        x = put_on_gpu(torch.autograd.Variable(
+            torch.rand(*batch_shape), requires_grad=True))
+        z = self._encoder_net.forward(x)
+        z_patch = self._patches[patch_idx].forward(z)
+
+        torch.sum(z_patch).backward()
+
+        rf = x.grad.data.cpu().numpy()
+        rf = rf[0, 0]
+        rf = zip(*np.where(np.abs(rf) > 1e-6))
+
+        (i_nw, j_nw), (i_se, j_se) = rf[0], rf[-1]
+
+        rf_w, rf_h = (j_se - j_nw + 1,
+                      i_se - i_nw + 1)
+
+        self.zero_grad()
+
+        return (i_nw, j_nw), (rf_w, rf_h)
 
 
 if __name__ == '__main__':
@@ -93,7 +116,7 @@ if __name__ == '__main__':
     input_tensor = torch.autograd.Variable(torch.rand(5, *expected_image_shape))
 
     net = SemanticAutoencoder(input_image_size, 1, 10)
-    print net.state_dict()
+    # print net.state_dict()
     # for p in ifilter(lambda p: p.requires_grad, net.parameters()):
     #     print p.size()
     # print
@@ -104,3 +127,5 @@ if __name__ == '__main__':
     # print len(z_patches)
 
     # print net.prototypes.weight[1]
+
+    print net.get_receptive_field(0)
