@@ -83,7 +83,7 @@ class SemanticAutoencoder(nn.Module):
 
     def get_nearest_patches_for_prototypes(self, dataset):
         all_patches = list()
-        all_patches_indices = list()
+        all_patch_id_indices = dict()
         candidate_patch_indices_dict = defaultdict(list)
 
         for i, (image, _, attributes, num_nonzero_attributes) in enumerate(dataset):
@@ -95,18 +95,19 @@ class SemanticAutoencoder(nn.Module):
 
             patches = z_patches[0]
             for j, patch in enumerate(patches):
-                all_patches.append(patch.data.cpu().numpy())
-
                 patch_id = (i, j)
                 for prototype_idx in attributes:
                     candidate_patch_indices_dict[prototype_idx].append(patch_id)
-                all_patches_indices.append(patch_id)
+
+                # store the index where patch will be added in all_patches
+                all_patch_id_indices[patch_id] = len(all_patches)
+                all_patches.append(patch.data.cpu().numpy())
 
         nearest_patches_for_prototypes = dict()
         for k in range(1, self.num_prototypes + 1):
             candidate_patches = list()
             for patch_id in candidate_patch_indices_dict[k]:
-                i_ = all_patches_indices.index(patch_id)
+                i_ = all_patch_id_indices[patch_id]
                 candidate_patches.append(all_patches[i_])
             candidate_patches = np.array(candidate_patches)
 
