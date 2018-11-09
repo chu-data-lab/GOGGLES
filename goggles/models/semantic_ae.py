@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -82,26 +84,38 @@ class SemanticAutoencoder(nn.Module):
     def get_nearest_patches_for_prototypes(self, dataset):
         all_patches = list()
         all_patches_indices = list()
-        for i, (image, _, _, _) in enumerate(dataset):
+        candidate_patch_indices_dict = defaultdict(list)
+
+        for i, (image, _, attributes, num_nonzero_attributes) in enumerate(dataset):
             x = image.view((1,) + image.size())
             x = self._make_cuda(torch.autograd.Variable(x))
             z, z_patches, reconstructed_x = self.forward(x)
 
+            attributes = attributes[:num_nonzero_attributes]
+
             patches = z_patches[0]
             for j, patch in enumerate(patches):
                 all_patches.append(patch.data.cpu().numpy())
-                all_patches_indices.append((i, j))
-        all_patches = np.array(all_patches)
+
+                patch_id = (i, j)
+                for prototype_idx in attributes:
+                    candidate_patch_indices_dict[prototype_idx].append(patch_id)
+                all_patches_indices.append(patch_id)
 
         nearest_patches_for_prototypes = dict()
         for k in range(1, self.num_prototypes + 1):
-            prototype = self.prototypes.weight[k].data.cpu().numpy()
+            candidate_patches = list()
+            for patch_id in candidate_patch_indices_dict[k]:
+                i_ = all_patches_indices.index(patch_id)
+                candidate_patches.append(all_patches[i_])
+            candidate_patches = np.array(candidate_patches)
 
-            dists = np.linalg.norm(prototype - all_patches, ord=2, axis=1)
+            prototype = self.prototypes.weight[k].data.cpu().numpy()
+            dists = np.linalg.norm(prototype - candidate_patches, ord=2, axis=1)
 
             nearest_patch_idx = np.argmin(dists)
-            nearest_patch = torch.FloatTensor(all_patches[nearest_patch_idx])
-            nearest_image_patch_idx = all_patches_indices[nearest_patch_idx]  # (image_idx, patch_idx)
+            nearest_patch = torch.FloatTensor(candidate_patches[nearest_patch_idx])
+            nearest_image_patch_idx = candidate_patch_indices_dict[k][nearest_patch_idx]  # (image_idx, patch_idx)
             nearest_patches_for_prototypes[k] = (nearest_image_patch_idx, nearest_patch)
 
         return nearest_patches_for_prototypes
