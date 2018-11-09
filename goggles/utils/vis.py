@@ -24,10 +24,10 @@ def get_image_from_tensor(x):
     return image
 
 
-def save_prototype_patch_visualization(model, dataset, prototype_patches, outdir):
-    for prototype_idx, ((image_idx, patch_idx), nearest_patch) in prototype_patches.items():
-        attribute_name = dataset.get_attribute_name_for_attribute_idx(prototype_idx)
-        (i_nw, j_nw), (patch_w, patch_h) = model.get_receptive_field(patch_idx)
+def save_prototype_patch_visualization(model, dataset, nearest_patches_for_prototypes, outdir):
+    for prototype_id, ((image_idx, patch_idx), nearest_patch) in nearest_patches_for_prototypes.items():
+        attribute_name = dataset.get_attribute_name_for_attribute_idx(prototype_id)
+        (i_nw, j_nw), (patch_w, patch_h) = model.get_receptive_field_for_patch(patch_idx)
 
         image = dataset[image_idx][0]
         image = get_image_from_tensor(image)
@@ -41,8 +41,8 @@ def save_prototype_patch_visualization(model, dataset, prototype_patches, outdir
             pltpatches.Rectangle(
                 (x_nw, y_nw),
                 patch_w, patch_h,
-                linewidth=1,
-                edgecolor='r',
+                linewidth=2,
+                edgecolor='g',
                 facecolor='none'))
 
         fig.savefig(os.path.join(outdir, '%s.png' % attribute_name.replace('::', '-')))
