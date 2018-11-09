@@ -17,12 +17,11 @@ from models.semantic_ae import SemanticAutoencoder
 from utils.vis import get_image_from_tensor, save_prototype_patch_visualization
 
 
-is_cuda = torch.cuda.is_available()
-put_on_gpu = lambda x: x.cuda() if is_cuda else x
+_make_cuda = lambda x: x.cuda() if torch.cuda.is_available() else x
 
 
 def load_datasets(input_image_size, *dataset_args):
-    assert len(dataset_args) == 3
+    assert len(dataset_args) == 2
 
     transform_random_flip = transforms.RandomHorizontalFlip()
     transform_resize = transforms.Scale((input_image_size, input_image_size))
@@ -35,38 +34,42 @@ def load_datasets(input_image_size, *dataset_args):
         transform_resize, transform_to_tensor, transform_normalize])
 
     train_dataset_random = CUBDataset(
-        *dataset_args, transform=random_transformation, is_training=True)
+        *dataset_args,
+        transform=random_transformation,
+        is_training=True)
 
     train_dataset_deterministic = CUBDataset(
-        *dataset_args, transform=deterministic_transformation, is_training=True)
+        *dataset_args,
+        transform=deterministic_transformation,
+        is_training=True)
 
     test_dataset = CUBDataset(
-        *dataset_args, transform=deterministic_transformation, is_training=False)
+        *dataset_args,
+        required_attributes=train_dataset_deterministic.attributes,
+        transform=deterministic_transformation,
+        is_training=False)
 
     return train_dataset_random, train_dataset_deterministic, test_dataset
 
 
 def main():
-    input_image_size = 64
-    species1_id = 14
-    species2_id = 90
+    input_image_size = 128
+    filter_species_ids = [14, 90]
     patch_size = 1
-    num_epochs = 100
+    num_epochs = 5000
 
     train_dataset_random, train_dataset_deterministic, \
-        test_dataset = load_datasets(input_image_size, CUB_DATA_DIR, species1_id, species2_id)
+        test_dataset = load_datasets(input_image_size, CUB_DATA_DIR, filter_species_ids)
 
     train_dataloader = DataLoader(
         train_dataset_random,
         collate_fn=CUBDataset.custom_collate_fn,
         batch_size=4, shuffle=True)
 
-    model = put_on_gpu(SemanticAutoencoder(
+    model = _make_cuda(SemanticAutoencoder(
         input_image_size,
         patch_size,
         train_dataset_random.num_attributes))
-
-    prototype_patches = None
 
     optimizer = optim.Adam(ifilter(lambda p: p.requires_grad, model.parameters()))
 
@@ -77,10 +80,10 @@ def main():
         for i, (image, label, attributes, padding_idx) in enumerate(train_dataloader, 1):
             model.zero_grad()
 
-            x = put_on_gpu(torch.autograd.Variable(image))
+            x = _make_cuda(torch.autograd.Variable(image))
             z, z_patches, reconstructed_x = model(x)
 
-            attributes = put_on_gpu(attributes)
+            attributes = _make_cuda(attributes)
             attribute_prototypes = model.prototypes(attributes)
 
             loss = my_loss_function(reconstructed_x, z_patches, attribute_prototypes, padding_idx, x)
@@ -93,23 +96,24 @@ def main():
         pbar.set_description('average_epoch_loss=%0.05f' % (epoch_loss / i))
 
         if (epoch % 5 == 0) or (epoch == num_epochs):
-            prototype_patches = \
-                model.get_nearest_dataset_patches_for_prototypes(
+            nearest_patches_for_prototypes = \
+                model.get_nearest_patches_for_prototypes(
                     train_dataset_deterministic)
-            model.reproject_prototypes(prototype_patches)
+            model.reproject_prototypes(nearest_patches_for_prototypes)
 
-            save_prototype_patch_visualization(
-                model, test_dataset,
-                prototype_patches,
-                '../out/prototypes/')
+            if (epoch % 100 == 0) or (epoch == num_epochs):
+                save_prototype_patch_visualization(
+                    model, train_dataset_deterministic,
+                    nearest_patches_for_prototypes,
+                    '../out/prototypes/')
 
-            for i, (image, label, attributes, _) in enumerate(test_dataset):
-                x = image.view((1,) + image.size())
-                x = put_on_gpu(torch.autograd.Variable(x))
-                z, z_patches, reconstructed_x = model(x)
+                for i, (image, label, attributes, _) in enumerate(test_dataset):
+                    x = image.view((1,) + image.size())
+                    x = _make_cuda(torch.autograd.Variable(x))
+                    z, z_patches, reconstructed_x = model(x)
 
-                reconstructed_image = get_image_from_tensor(reconstructed_x)
-                reconstructed_image.save(os.path.join(OUT_DIR, 'images', '%d-%d.png' % (epoch, i)))
+                    reconstructed_image = get_image_from_tensor(reconstructed_x)
+                    reconstructed_image.save(os.path.join(OUT_DIR, 'images', '%d-%d.png' % (epoch, i)))
 
     torch.save(model, os.path.join(MODEL_DIR, 'model.pt'))
 
