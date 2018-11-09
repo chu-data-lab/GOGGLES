@@ -141,7 +141,12 @@ def load_cub_metadata(cub_data_dir):
                                            certainties_by_id[certainty])
                 datum_by_id[datum_id].add_attribute_annotation(attr)
 
-    return list(species_by_id.values()), list(attributes_by_id.values()), list(datum_by_id.values())
+    all_species, all_attributes, all_images_data = \
+        list(sorted(species_by_id.values(), key=lambda s: s.id)), \
+        list(sorted(attributes_by_id.values(), key=lambda a: a.id)), \
+        list(sorted(datum_by_id.values(), key=lambda d: d.id))
+
+    return all_species, all_attributes, all_images_data
 
 if __name__ == '__main__':
     from goggles.constants import *
