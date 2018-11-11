@@ -8,6 +8,7 @@ from encoder import Encoder
 from decoder import Decoder
 from patch import Patch
 from prototype import Prototypes
+from goggles.utils.functional import get_squared_l2_distances_from_references
 
 
 class SemanticAutoencoder(nn.Module):
@@ -86,8 +87,8 @@ class SemanticAutoencoder(nn.Module):
 
     def get_nearest_patches_for_prototypes(self, dataset):
         all_patches = list()
-        all_patch_id_indices = dict()
-        candidate_patch_indices_dict = defaultdict(list)
+        candidate_patch_idxs_dict = defaultdict(list)
+        nearest_patches_for_prototypes = dict()
 
         for i, (image, _, attributes, num_nonzero_attributes) in enumerate(dataset):
             x = image.view((1,) + image.size())
@@ -99,28 +100,32 @@ class SemanticAutoencoder(nn.Module):
             patches = z_patches[0]
             for j, patch in enumerate(patches):
                 patch_id = (i, j)
-                for prototype_idx in attributes:
-                    candidate_patch_indices_dict[prototype_idx].append(patch_id)
+                all_patches_idx = len(all_patches)  # where patch will be added in all_patches
 
-                # store the index where patch will be added in all_patches
-                all_patch_id_indices[patch_id] = len(all_patches)
-                all_patches.append(patch.data.cpu().numpy())
+                for prototype_label in attributes:
+                    candidate_patch_idxs_dict[prototype_label].append(
+                        (all_patches_idx, patch_id))
 
-        nearest_patches_for_prototypes = dict()
+                all_patches.append(patch)
+        all_patches = torch.stack(all_patches)
+
         for k in range(1, self.num_prototypes + 1):
-            candidate_patches = list()
-            for patch_id in candidate_patch_indices_dict[k]:
-                i_ = all_patch_id_indices[patch_id]
-                candidate_patches.append(all_patches[i_])
-            candidate_patches = np.array(candidate_patches)
+            candidate_patch_idxs = torch.LongTensor(
+                [all_patches_idx
+                 for all_patches_idx, _
+                 in candidate_patch_idxs_dict[k]])
+            candidate_patches = all_patches[candidate_patch_idxs]
 
-            prototype = self.prototypes.weight[k].data.cpu().numpy()
-            dists = np.linalg.norm(prototype - candidate_patches, ord=2, axis=1)
+            prototype_label = self._make_cuda(torch.LongTensor([k]))
+            prototype = self.prototypes(prototype_label)
 
-            nearest_patch_idx = np.argmin(dists)
-            nearest_patch = torch.FloatTensor(candidate_patches[nearest_patch_idx])
-            nearest_image_patch_idx = candidate_patch_indices_dict[k][nearest_patch_idx]  # (image_idx, patch_idx)
-            nearest_patches_for_prototypes[k] = (nearest_image_patch_idx, nearest_patch)
+            dists = get_squared_l2_distances_from_references(
+                prototype, candidate_patches)
+
+            nearest_patch_idx = torch.min(dists, dim=1)[1].data.cpu().numpy()[0]
+            nearest_patch = candidate_patches[nearest_patch_idx]
+            _, nearest_patch_id = candidate_patch_idxs_dict[k][nearest_patch_idx]  # (image_idx, patch_idx)
+            nearest_patches_for_prototypes[k] = (nearest_patch_id, nearest_patch)
 
         return nearest_patches_for_prototypes
 
@@ -131,12 +136,28 @@ class SemanticAutoencoder(nn.Module):
 
 
 if __name__ == '__main__':
-    from itertools import ifilter
+    import torchvision.transforms as transforms
+
+    from goggles.constants import *
+    from goggles.data.cub.dataset import CUBDataset
+
     input_image_size = 64
     expected_image_shape = (3, input_image_size, input_image_size)
+
+    transform_random_flip = transforms.RandomHorizontalFlip()
+    transform_resize = transforms.Scale((input_image_size, input_image_size))
+    transform_to_tensor = transforms.ToTensor()
+    transform_normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+
+    random_transformation = transforms.Compose([
+        transform_random_flip, transform_resize, transform_to_tensor, transform_normalize])
+
+    test_dataset = CUBDataset('/Users/nilakshdas/Dev/GOGGLES/data/CUB_200_2011', transform=random_transformation)
+
     input_tensor = torch.autograd.Variable(torch.rand(5, *expected_image_shape))
 
     net = SemanticAutoencoder(input_image_size, 1, 10)
+    print net.get_nearest_patches_for_prototypes(test_dataset)
     # print net.state_dict()
     # for p in ifilter(lambda p: p.requires_grad, net.parameters()):
     #     print p.size()
