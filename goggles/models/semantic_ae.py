@@ -157,17 +157,17 @@ if __name__ == '__main__':
     input_tensor = torch.autograd.Variable(torch.rand(5, *expected_image_shape))
 
     net = SemanticAutoencoder(input_image_size, 1, 10)
-    print net.get_nearest_patches_for_prototypes(test_dataset)
-    # print net.state_dict()
+    print(net.get_nearest_patches_for_prototypes(test_dataset))
+    # print(net.state_dict())
     # for p in ifilter(lambda p: p.requires_grad, net.parameters()):
-    #     print p.size()
-    # print
+    #     print(p.size())
+    # print()
     # z, z_patches, reconstructed_x = net(input_tensor)
-    # print z.size()
-    # print reconstructed_x.size()
-    # print z_patches[0].size()
-    # print len(z_patches)
+    # print(z.size())
+    # print(reconstructed_x.size())
+    # print(z_patches[0].size())
+    # print(len(z_patches))
 
-    # print net.prototypes.weight[1]
+    # print(net.prototypes.weight[1])
 
-    print net.get_receptive_field_for_patch(0)
+    print(net.get_receptive_field_for_patch(0))

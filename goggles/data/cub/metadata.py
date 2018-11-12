@@ -151,4 +151,4 @@ def load_cub_metadata(cub_data_dir):
 if __name__ == '__main__':
     from goggles.constants import *
 
-    print load_cub_metadata(CUB_DATA_DIR)
+    print(load_cub_metadata(CUB_DATA_DIR))

@@ -48,6 +48,6 @@ if __name__ == '__main__':
     z = enc.forward(x)
     x_ = dec.forward(z)
 
-    print dec
-    print x_.size()
+    print(dec)
+    print(x_.size())
     assert x_.size()[-3:] == expected_image_shape

@@ -100,10 +100,10 @@ if __name__ == '__main__':
     assert train_dataset.num_attributes == test_dataset.num_attributes
     for i in range(train_dataset.num_attributes):
         assert train_dataset.attributes[i] == test_dataset.attributes[i]
-        print train_dataset.attributes[i], test_dataset.attributes[i]
+        print(train_dataset.attributes[i], test_dataset.attributes[i])
 
     for d, l, a, _ in train_dataset:
-        print d.size(), l, a
+        print(d.size(), l, a)
 
-    print len(train_dataset)
-    print len(test_dataset)
+    print(len(train_dataset))
+    print(len(test_dataset))

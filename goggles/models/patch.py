@@ -45,9 +45,9 @@ if __name__ == '__main__':
                            [29, 30, 31, 32],
                            [33, 34, 35, 36]]]])
 
-    print z.size()
+    print(z.size())
 
     patches = Patch.from_spec(z.size(), (2, 2))
     for patch in patches:
-        print patch(z).numpy()
-        print '---'
+        print(patch(z).numpy())
+        print('---')

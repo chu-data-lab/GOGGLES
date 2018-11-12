@@ -40,7 +40,7 @@ if __name__ == '__main__':
     padding_idx = torch.IntTensor([4, 5, 9, 37])
     x = torch.autograd.Variable(torch.rand(4, 3, 64, 64))
 
-    print my_loss_function(reconstructed_x, z_patches, attribute_prototypes, padding_idx, x)
+    print(my_loss_function(reconstructed_x, z_patches, attribute_prototypes, padding_idx, x))
 
     # attr = torch.IntTensor([
     #     [1, 2, 3, 4, 0, 0, 0],
@@ -48,4 +48,4 @@ if __name__ == '__main__':
     #     [1, 2, 3, 4, 5, 6, 7]
     # ])
     #
-    # print attr.nonzero()
+    # print(attr.nonzero())

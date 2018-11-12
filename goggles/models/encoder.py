@@ -43,8 +43,8 @@ if __name__ == '__main__':
     input_tensor = torch.autograd.Variable(torch.rand(1, *expected_image_shape))
 
     net = Encoder(input_image_size, 3, kernel_size=3, conv_stride=2, conv_padding=1)
-    print net
+    print(net)
     output_tensor = net(input_tensor)
-    print output_tensor.size()
-    print net.output_size
-    print net.num_out_channels
+    print(output_tensor.size())
+    print(net.output_size)
+    print(net.num_out_channels)
