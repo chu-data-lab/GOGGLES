@@ -21,3 +21,15 @@ def get_squared_l2_distances_from_references(embeddings1, embeddings2):
 
     dists = torch.sum((embeddings1_ - embeddings2_) ** 2, dim=2)
     return dists  # num_embeddings1 x num_embeddings2
+
+
+def pairwise_cosine_similarities(embeddings1, embeddings2):
+    assert len(embeddings1.size()) == len(embeddings2.size()) == 2
+    embedding_dim = embeddings1.size(1)
+    assert embeddings2.size(1) == embedding_dim
+
+    embeddings1_ = F.normalize(embeddings1, dim=1)
+    embeddings2_ = F.normalize(embeddings2, dim=1)
+
+    sims = torch.mm(embeddings1_, embeddings2_.t())
+    return sims  # num_embeddings1 x num_embeddings2
