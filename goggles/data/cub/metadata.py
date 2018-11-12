@@ -97,10 +97,22 @@ def load_cub_metadata(cub_data_dir):
 
     datum_by_id = dict()
     datum_file = os.path.join(cub_data_dir, 'CUB_200_2011', 'images.txt')
+    skip_paths = [
+        "009.Brewer_Blackbird/Brewer_Blackbird_0028_2682.jpg",
+        "025.Pelagic_Cormorant/Pelagic_Cormorant_0022_23802.jpg",
+        "063.Ivory_Gull/Ivory_Gull_0040_49180.jpg",
+        "063.Ivory_Gull/Ivory_Gull_0085_49456.jpg",
+        "066.Western_Gull/Western_Gull_0002_54825.jpg",
+        "093.Clark_Nutcracker/Clark_Nutcracker_0020_85099.jpg",
+        "087.Mallard/Mallard_0130_76836.jpg",
+        "108.White_necked_Raven/White_Necked_Raven_0070_102645.jpg"
+    ]
     with open(datum_file, 'r') as f:
         for l in f.readlines():
             id_, path = l.strip().split()
             id_ = int(id_)
+            if path in skip_paths:
+                continue
             species_name = path.split('/')[0]
             species_id = int(species_name.split('.')[0])
             species = species_by_id[species_id]

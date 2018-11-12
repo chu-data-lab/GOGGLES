@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 
 from goggles.constants import CACHE_DIR
-from metadata import load_cub_metadata
+from goggles.data.cub.metadata import load_cub_metadata
 
 
 class CUBDataset(Dataset):
@@ -62,6 +62,9 @@ class CUBDataset(Dataset):
         image = Image.open(image_file)
         image = self._transform(image)
 
+        if image.size(0) < 3:
+            print(datum.path)
+
         label = self._species_labels[datum.species]
 
         attributes = list()
@@ -94,16 +97,20 @@ class CUBDataset(Dataset):
 if __name__ == '__main__':
     data_dir = '/Users/nilakshdas/Dev/GOGGLES/data/CUB_200_2011'
 
-    train_dataset = CUBDataset(data_dir, [14, 90], is_training=True)
-    test_dataset = CUBDataset(data_dir, [14, 90], train_dataset.attributes, is_training=False)
+    train_dataset = CUBDataset(data_dir, is_training=True)
+    test_dataset = CUBDataset(data_dir, required_attributes=train_dataset.attributes, is_training=False)
 
-    assert train_dataset.num_attributes == test_dataset.num_attributes
-    for i in range(train_dataset.num_attributes):
-        assert train_dataset.attributes[i] == test_dataset.attributes[i]
-        print(train_dataset.attributes[i], test_dataset.attributes[i])
-
+    count = 0
     for d, l, a, _ in train_dataset:
-        print(d.size(), l, a)
+        if d.size(0) < 3:
+            count += 1
+    print(count)
+
+    count = 0
+    for d, l, a, _ in test_dataset:
+        if d.size(0) < 3:
+            count += 1
+    print(count)
 
     print(len(train_dataset))
     print(len(test_dataset))
