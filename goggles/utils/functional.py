@@ -3,13 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-def get_squared_l2_distances_from_references(embeddings1, embeddings2):
+def pairwise_squared_euclidean_distances(embeddings1, embeddings2):
     assert len(embeddings1.size()) == len(embeddings2.size()) == 2
-
     num_embeddings1 = embeddings1.size(0)
     num_embeddings2 = embeddings2.size(0)
     embedding_dim = embeddings1.size(1)
-
     assert embeddings2.size(1) == embedding_dim
 
     embeddings1_ = embeddings1 \

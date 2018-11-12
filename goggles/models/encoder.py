@@ -25,7 +25,7 @@ class Encoder(nn.Module):
             out_channels *= channel_growth_factor
             output_size = 1 + (output_size - kernel_size + (2 * conv_padding)) // conv_stride
         self.output_size = output_size
-        self.num_out_channels = out_channels / channel_growth_factor
+        self.num_out_channels = out_channels // channel_growth_factor
 
         self._net = nn.Sequential(OrderedDict(layers))
 

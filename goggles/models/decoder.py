@@ -14,14 +14,14 @@ class Decoder(nn.Module):
         layers = list()
         channel_shrinkage_factor = 2
         in_channels = num_in_channels
-        out_channels = num_in_channels / channel_shrinkage_factor
+        out_channels = num_in_channels // channel_shrinkage_factor
         conv_spec = (kernel_size, conv_stride, conv_padding)
         for i in range(num_conv_volumes - 1):
             layers.append(('deconv%d' % (i + 1), nn.ConvTranspose2d(in_channels, out_channels, *conv_spec),))
             layers.append(('relu%d' % (i + 1), nn.ReLU(inplace=True),))
 
             in_channels = out_channels
-            out_channels /= channel_shrinkage_factor
+            out_channels //= channel_shrinkage_factor
 
         i = num_conv_volumes
         layers.append(('deconv%d' % i, nn.ConvTranspose2d(in_channels, 3, *conv_spec),))

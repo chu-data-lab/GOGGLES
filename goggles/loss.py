@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils.functional import get_squared_l2_distances_from_references
+from goggles.utils.functional import pairwise_squared_euclidean_distances
 
 
 def my_loss_function(reconstructed_x, z_patches, prototypes, padding_idx, x, lambda_=0.01):
@@ -22,7 +22,7 @@ def my_loss_function(reconstructed_x, z_patches, prototypes, padding_idx, x, lam
         image_patches = z_patches[i]
         image_prototypes = prototypes[i][:padding_idx[i]]
 
-        dists = get_squared_l2_distances_from_references(
+        dists = pairwise_squared_euclidean_distances(
             image_prototypes, image_patches)
         min_dists = torch.min(dists, dim=1)[0]
 

@@ -10,11 +10,11 @@ import torch.optim as optim
 import torchvision.transforms as transforms
 from tqdm import tqdm
 
-from constants import *
-from data.cub.dataset import CUBDataset
-from loss import my_loss_function
-from models.semantic_ae import SemanticAutoencoder
-from utils.vis import get_image_from_tensor, save_prototype_patch_visualization
+from goggles.constants import *
+from goggles.data.cub.dataset import CUBDataset
+from goggles.loss import my_loss_function
+from goggles.models.semantic_ae import SemanticAutoencoder
+from goggles.utils.vis import get_image_from_tensor, save_prototype_patch_visualization
 
 
 _make_cuda = lambda x: x.cuda() if torch.cuda.is_available() else x

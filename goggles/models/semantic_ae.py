@@ -4,11 +4,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from encoder import Encoder
-from decoder import Decoder
-from patch import Patch
-from prototype import Prototypes
-from goggles.utils.functional import get_squared_l2_distances_from_references
+from goggles.models.encoder import Encoder
+from goggles.models.decoder import Decoder
+from goggles.models.patch import Patch
+from goggles.models.prototype import Prototypes
+from goggles.utils.functional import pairwise_squared_euclidean_distances
 
 
 class SemanticAutoencoder(nn.Module):
@@ -71,7 +71,7 @@ class SemanticAutoencoder(nn.Module):
 
             rf = x.grad.data.cpu().numpy()
             rf = rf[0, 0]
-            rf = zip(*np.where(np.abs(rf) > 1e-6))
+            rf = list(zip(*np.where(np.abs(rf) > 1e-6)))
 
             (i_nw, j_nw), (i_se, j_se) = rf[0], rf[-1]
 
@@ -119,7 +119,7 @@ class SemanticAutoencoder(nn.Module):
             prototype_label = self._make_cuda(torch.LongTensor([k]))
             prototype = self.prototypes(prototype_label)
 
-            dists = get_squared_l2_distances_from_references(
+            dists = pairwise_squared_euclidean_distances(
                 prototype, candidate_patches)
 
             nearest_patch_idx = torch.min(dists, dim=1)[1].data.cpu().numpy()[0]
