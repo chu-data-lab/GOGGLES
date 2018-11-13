@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from goggles.constants import *
 from goggles.data.cub.dataset import CUBDataset
-from goggles.loss import CustomLoss
+from goggles.loss import CustomLoss2
 from goggles.models.semantic_ae import SemanticAutoencoder
 from goggles.utils.vis import get_image_from_tensor, save_prototype_patch_visualization
 
@@ -54,6 +54,7 @@ def load_datasets(input_image_size, *dataset_args):
 
 def main():
     input_image_size = 128
+    batch_size = 64
     filter_species_ids = [14, 90]
     patch_size = 1
     num_epochs = 5000
@@ -64,14 +65,14 @@ def main():
     train_dataloader = DataLoader(
         train_dataset_random,
         collate_fn=CUBDataset.custom_collate_fn,
-        batch_size=4, shuffle=True)
+        batch_size=batch_size, shuffle=True)
 
     model = _make_cuda(SemanticAutoencoder(
         input_image_size,
         patch_size,
         train_dataset_random.num_attributes))
 
-    criterion = CustomLoss()
+    criterion = _make_cuda(CustomLoss2())
     optimizer = optim.Adam(ifilter(lambda p: p.requires_grad, model.parameters()))
 
     pbar = tqdm(range(1, num_epochs + 1))

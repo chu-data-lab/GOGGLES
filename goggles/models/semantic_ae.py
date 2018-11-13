@@ -8,7 +8,8 @@ from goggles.models.encoder import Encoder
 from goggles.models.decoder import Decoder
 from goggles.models.patch import Patch
 from goggles.models.prototype import Prototypes
-from goggles.utils.functional import pairwise_squared_euclidean_distances
+from goggles.utils.functional import (pairwise_cosine_similarities,
+                                      pairwise_squared_euclidean_distances)
 
 
 class SemanticAutoencoder(nn.Module):
@@ -119,10 +120,10 @@ class SemanticAutoencoder(nn.Module):
             prototype_label = self._make_cuda(torch.LongTensor([k]))
             prototype = self.prototypes(prototype_label)
 
-            dists = pairwise_squared_euclidean_distances(
+            sims = pairwise_cosine_similarities(
                 prototype, candidate_patches)
 
-            nearest_patch_idx = torch.min(dists, dim=1)[1].data.cpu().numpy()[0]
+            nearest_patch_idx = torch.max(sims, dim=1)[1].data.cpu().numpy()[0]
             nearest_patch = candidate_patches[nearest_patch_idx]
             _, nearest_patch_id = candidate_patch_idxs_dict[k][nearest_patch_idx]  # (image_idx, patch_idx)
             nearest_patches_for_prototypes[k] = (nearest_patch_id, nearest_patch)
