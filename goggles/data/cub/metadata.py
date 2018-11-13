@@ -124,7 +124,8 @@ def load_cub_metadata(cub_data_dir):
             id_, is_for_training = l.strip().split()
             id_ = int(id_)
             is_for_training = int(is_for_training) == 1
-            datum_by_id[id_].set_for_training(is_for_training)
+            if id_ in datum_by_id:
+                datum_by_id[id_].set_for_training(is_for_training)
 
     higher_order_attributes = set(a.higher_order_name for a in attributes_by_id.values())
     higher_order_attribute_ids = {
@@ -147,7 +148,7 @@ def load_cub_metadata(cub_data_dir):
     with open(image_attributes_file, 'r') as f:
         for l in f.readlines():
             datum_id, attr_id, is_present, certainty = tuple(map(int, l.strip().split()[:4]))
-            if is_present == 1:
+            if datum_id in datum_by_id and is_present == 1:
                 attr = AttributeAnnotation(attr_id,
                                            attributes_by_id[attr_id].name,
                                            certainties_by_id[certainty])
