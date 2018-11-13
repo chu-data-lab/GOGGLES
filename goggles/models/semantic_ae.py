@@ -39,24 +39,62 @@ class SemanticAutoencoder(nn.Module):
         self.prototypes = Prototypes(num_prototypes + 1, dim_prototypes, padding_idx=0)
         self.prototypes.weight.requires_grad = False  # freeze embeddings
 
+        self._metric = pairwise_cosine_similarities
+        self._nearest = lambda M: torch.max(M, dim=1)  # max's, indices
+
     def _make_cuda(self, x):
         return x.cuda() if self._is_cuda else x
 
-    def forward(self, x):
-        z = self._encoder_net(x)
-        reconstructed_x = self._decoder_net(z)
-
+    def _forward_patches(self, z):
         z_patches = [patch(z) for patch in self._patches]  # [patch1:Tensor(batch_size, dim), patch2, ...]
         z_patches = torch.stack(z_patches)  # num_patches, batch_size, embedding_dim
         z_patches = z_patches.transpose(0, 1)  # batch_size, num_patches, embedding_dim
 
-        return z, z_patches, reconstructed_x
+        return z_patches
+
+    def _predict_prototype_scores(self, x):
+        """
+        :param x: batch_size x channels x height x width
+        :return: [{1: score, 2, score, ...}] x batch_size
+        """
+        batch_size = x.size(0)
+
+        z = self._encoder_net(x)
+        z_patches = self._forward_patches(z)
+
+        prototype_labels = range(1, self.num_prototypes + 1)
+        prototypes = self.prototypes(
+            self._make_cuda(torch.LongTensor(prototype_labels)))
+
+        batch_scores = list()
+        for i in range(batch_size):
+            image_patches = z_patches[i]
+            sims = self._metric(prototypes, image_patches)
+            image_scores = self._nearest(sims)[0]
+
+            batch_scores.append({k: image_scores[k - 1] for k in prototype_labels})
+        return batch_scores
 
     def cuda(self, device_id=None):
         self._is_cuda = True
         return super(SemanticAutoencoder, self).cuda(device_id)
 
-    def get_receptive_field_for_patch(self, patch_idx):
+    def forward(self, x):
+        z = self._encoder_net(x)
+        z_patches = self._forward_patches(z)
+        reconstructed_x = self._decoder_net(z)
+
+        return z, z_patches, reconstructed_x
+
+    def predict_prototype_scores(self, image):
+        x = image.view((1,) + image.size())
+        x = self._make_cuda(torch.autograd.Variable(x))
+        scores_dict = self._predict_prototype_scores(x)[0]
+
+        return {k: val.data.cpu().numpy()[0]
+                for k, val in scores_dict.items()}
+
+    def get_receptive_field(self, patch_idx):
         if patch_idx not in self._receptive_fields_for_patches:
             self.zero_grad()
 
@@ -91,23 +129,23 @@ class SemanticAutoencoder(nn.Module):
         candidate_patch_idxs_dict = defaultdict(list)
         nearest_patches_for_prototypes = dict()
 
-        for i, (image, _, attributes, num_nonzero_attributes) in enumerate(dataset):
+        for i, (image, _, attribute_labels, num_nonzero_attributes) in enumerate(dataset):
             x = image.view((1,) + image.size())
             x = self._make_cuda(torch.autograd.Variable(x))
             z, z_patches, reconstructed_x = self.forward(x)
 
-            attributes = attributes[:num_nonzero_attributes]
+            prototype_labels = attribute_labels[:num_nonzero_attributes]
 
             patches = z_patches[0]
             for j, patch in enumerate(patches):
                 patch_id = (i, j)
                 all_patches_idx = len(all_patches)  # where patch will be added in all_patches
-
-                for prototype_label in attributes:
+                for prototype_label in prototype_labels:
                     candidate_patch_idxs_dict[prototype_label].append(
                         (all_patches_idx, patch_id))
 
                 all_patches.append(patch)
+
         all_patches = torch.stack(all_patches)
 
         for k in range(1, self.num_prototypes + 1):
@@ -120,10 +158,9 @@ class SemanticAutoencoder(nn.Module):
             prototype_label = self._make_cuda(torch.LongTensor([k]))
             prototype = self.prototypes(prototype_label)
 
-            sims = pairwise_cosine_similarities(
-                prototype, candidate_patches)
+            sims = self._metric(prototype, candidate_patches)
 
-            nearest_patch_idx = torch.max(sims, dim=1)[1].data.cpu().numpy()[0]
+            nearest_patch_idx = self._nearest(sims)[1].data.cpu().numpy()[0]
             nearest_patch = candidate_patches[nearest_patch_idx]
             _, nearest_patch_id = candidate_patch_idxs_dict[k][nearest_patch_idx]  # (image_idx, patch_idx)
             nearest_patches_for_prototypes[k] = (nearest_patch_id, nearest_patch)
@@ -171,4 +208,4 @@ if __name__ == '__main__':
 
     # print(net.prototypes.weight[1])
 
-    print(net.get_receptive_field_for_patch(0))
+    print(net.get_receptive_field(0))

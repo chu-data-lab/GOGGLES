@@ -25,9 +25,9 @@ def get_image_from_tensor(x):
 
 
 def save_prototype_patch_visualization(model, dataset, nearest_patches_for_prototypes, outdir):
-    for prototype_id, ((image_idx, patch_idx), nearest_patch) in nearest_patches_for_prototypes.items():
-        attribute_name = dataset.get_attribute_name_for_attribute_idx(prototype_id)
-        (i_nw, j_nw), (patch_w, patch_h) = model.get_receptive_field_for_patch(patch_idx)
+    for prototype_label, ((image_idx, patch_idx), nearest_patch) in nearest_patches_for_prototypes.items():
+        attribute_name = dataset.get_attribute(prototype_label).name
+        (i_nw, j_nw), (patch_w, patch_h) = model.get_receptive_field(patch_idx)
 
         image = dataset[image_idx][0]
         image = get_image_from_tensor(image)

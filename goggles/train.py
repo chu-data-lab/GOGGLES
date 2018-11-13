@@ -79,16 +79,16 @@ def main():
     for epoch in pbar:
         epoch_loss = 0.
 
-        for i, (image, label, attributes, padding_idx) in enumerate(train_dataloader, 1):
+        for i, (image, label, attribute_labels, padding_idx) in enumerate(train_dataloader, 1):
             model.zero_grad()
 
             x = _make_cuda(torch.autograd.Variable(image))
             z, z_patches, reconstructed_x = model(x)
 
-            attributes = _make_cuda(attributes)
-            attribute_prototypes = model.prototypes(attributes)
+            prototype_labels = _make_cuda(attribute_labels)
+            prototypes = model.prototypes(prototype_labels)
 
-            loss = criterion(reconstructed_x, z_patches, attribute_prototypes, padding_idx, x)
+            loss = criterion(reconstructed_x, z_patches, prototypes, padding_idx, x)
 
             loss.backward()
             optimizer.step()
@@ -109,13 +109,13 @@ def main():
                     nearest_patches_for_prototypes,
                     os.path.join(OUT_DIR, 'prototypes'))
 
-                for i, (image, label, attributes, _) in enumerate(test_dataset):
+                for i_, (image, image_label, attribute_labels, _) in enumerate(test_dataset):
                     x = image.view((1,) + image.size())
                     x = _make_cuda(torch.autograd.Variable(x))
                     z, z_patches, reconstructed_x = model(x)
 
                     reconstructed_image = get_image_from_tensor(reconstructed_x)
-                    reconstructed_image.save(os.path.join(OUT_DIR, 'images', '%d-%d.png' % (epoch, i)))
+                    reconstructed_image.save(os.path.join(OUT_DIR, 'images', '%d-%d.png' % (epoch, i_)))
 
     torch.save(model, os.path.join(MODEL_DIR, 'model.pt'))
 

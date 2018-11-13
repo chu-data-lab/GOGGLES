@@ -25,9 +25,9 @@ class CUBDataset(Dataset):
         self.is_training = is_training
         self._data_dir = root
 
-        required_species,\
-        self.attributes, \
-        self._image_data = metadata_loader(root)  # load_cub_metadata(root) cached
+        required_species, \
+            self.attributes, \
+            self._image_data = metadata_loader(root)  # load_cub_metadata(root) cached
 
         if filter_species_ids is not None:
             assert type(filter_species_ids) is list
@@ -62,16 +62,27 @@ class CUBDataset(Dataset):
         image = Image.open(image_file)
         image = self._transform(image)
 
-        label = self._species_labels[datum.species]
+        image_label = self._species_labels[datum.species]
 
-        attributes = list()
+        attribute_labels = list()
         for attr in datum.attribute_annotations:
             if attr in self.attributes:
-                attributes.append(self.attributes.index(attr) + 1)  # attributes are 1-indexed
-        num_nonzero_attributes = len(attributes)
-        attributes = sorted(attributes) + ([0] * (self.num_attributes - len(attributes)))  # 0's added for padding
+                attribute_labels.append(self.get_attribute_label(attr))
+        num_nonzero_attributes = len(attribute_labels)  # 0's will be added for padding
+        attribute_labels = sorted(attribute_labels) + ([0] * (self.num_attributes - len(attribute_labels)))
 
-        return image, label, attributes, num_nonzero_attributes
+        return image, image_label, attribute_labels, num_nonzero_attributes
+
+    def get_labels(self):
+        return {label: species
+                for species, label
+                in self._species_labels.items()}
+
+    def get_attribute(self, attribute_label):
+        return self.attributes[attribute_label - 1]  # attribute labels are 1-indexed
+
+    def get_attribute_label(self, attribute):
+        return self.attributes.index(attribute) + 1  # attribute labels are 1-indexed
 
     @staticmethod
     def custom_collate_fn(batch):
@@ -86,9 +97,6 @@ class CUBDataset(Dataset):
         padding_idx = torch.LongTensor(num_nonzero_attributes)
 
         return image, label, attributes, padding_idx
-
-    def get_attribute_name_for_attribute_idx(self, attribute_idx):
-        return self.attributes[attribute_idx - 1].name  # attributes are 1-indexed
 
 
 if __name__ == '__main__':
