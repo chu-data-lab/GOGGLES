@@ -100,7 +100,7 @@ class CustomLoss2(object):
         batch_size = x.size(0)
         num_patches = z_patches.size(1)
 
-        loss = lambda_val * self._reconstruction_loss(
+        loss = self._reconstruction_loss(
             reconstructed_x, x, size_average=False)
 
         for i in range(batch_size):
@@ -114,7 +114,7 @@ class CustomLoss2(object):
             targets = self._make_cuda(torch.eye(num_patches))
             targets = targets[nearest_patch_idxs]
 
-            loss += self._bxent_loss(sims, targets)
+            loss += lambda_val * self._bxent_loss(sims, targets)
 
         loss = loss / batch_size
         return loss

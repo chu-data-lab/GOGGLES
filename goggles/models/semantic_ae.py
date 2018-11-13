@@ -33,7 +33,7 @@ class SemanticAutoencoder(nn.Module):
         # pre-compute receptive fields for patches
         self._receptive_fields_for_patches = dict()
         for i in range(len(self._patches)):
-            _ = self.get_receptive_field_for_patch(i)
+            _ = self.get_receptive_field(i)
 
         dim_prototypes = self._encoder_net.num_out_channels * (encoded_patch_size ** 2)
         self.prototypes = Prototypes(num_prototypes + 1, dim_prototypes, padding_idx=0)
