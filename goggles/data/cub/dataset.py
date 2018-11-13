@@ -62,9 +62,6 @@ class CUBDataset(Dataset):
         image = Image.open(image_file)
         image = self._transform(image)
 
-        if image.size(0) < 3:
-            print(datum.path)
-
         label = self._species_labels[datum.species]
 
         attributes = list()

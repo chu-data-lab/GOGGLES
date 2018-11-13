@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 from goggles.constants import *
 from goggles.data.cub.dataset import CUBDataset
-from goggles.loss import my_loss_function
+from goggles.loss import CustomLoss
 from goggles.models.semantic_ae import SemanticAutoencoder
 from goggles.utils.vis import get_image_from_tensor, save_prototype_patch_visualization
 
@@ -71,6 +71,7 @@ def main():
         patch_size,
         train_dataset_random.num_attributes))
 
+    criterion = CustomLoss()
     optimizer = optim.Adam(ifilter(lambda p: p.requires_grad, model.parameters()))
 
     pbar = tqdm(range(1, num_epochs + 1))
@@ -86,7 +87,7 @@ def main():
             attributes = _make_cuda(attributes)
             attribute_prototypes = model.prototypes(attributes)
 
-            loss = my_loss_function(reconstructed_x, z_patches, attribute_prototypes, padding_idx, x)
+            loss = criterion(reconstructed_x, z_patches, attribute_prototypes, padding_idx, x)
 
             loss.backward()
             optimizer.step()
@@ -105,7 +106,7 @@ def main():
                 save_prototype_patch_visualization(
                     model, train_dataset_deterministic,
                     nearest_patches_for_prototypes,
-                    '../out/prototypes/')
+                    os.path.join(OUT_DIR, 'prototypes'))
 
                 for i, (image, label, attributes, _) in enumerate(test_dataset):
                     x = image.view((1,) + image.size())
