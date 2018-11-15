@@ -91,7 +91,7 @@ class SemanticAutoencoder(nn.Module):
         x = self._make_cuda(torch.autograd.Variable(x))
         scores_dict = self._predict_prototype_scores(x)[0]
 
-        return {k: val.data.cpu().numpy()[0]
+        return {k: val.data.cpu().numpy()
                 for k, val in scores_dict.items()}
 
     def get_receptive_field(self, patch_idx):

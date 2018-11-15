@@ -16,7 +16,7 @@ def make_labeling_matrix(model, dataset, score_threshold=0.6):
         all_species, key=lambda s:s.id))
 
     assert len(all_species) == 2  # binary labeling functions
-    species_1, species_2 = tuple(all_species)
+    species_1, species_2 = all_labels[0], all_labels[1]
 
     all_attributes = set()
     for species in all_species:
@@ -26,8 +26,9 @@ def make_labeling_matrix(model, dataset, score_threshold=0.6):
     for species in all_species:
         common_attributes = common_attributes.intersection(species.attributes)
 
-    for image, image_label, attribute_labels, num_nonzero_attributes in dataset:
-        true_labels.append(image_label)
+    for image, image_label, _, _ in dataset:
+        assert image_label in [0, 1]
+        true_labels.append(-1 if image_label == 0 else 1)
 
         labeling_functions = list()
         prototype_scores = model.predict_prototype_scores(image)
@@ -37,9 +38,9 @@ def make_labeling_matrix(model, dataset, score_threshold=0.6):
             lf = None
             if attribute not in common_attributes:
                 if attribute in species_1.attributes:
-                    lf = 1 if prototype_scores[attribute_label] >= score_threshold else 0
-                else:
                     lf = -1 if prototype_scores[attribute_label] >= score_threshold else 0
+                else:
+                    lf = 1 if prototype_scores[attribute_label] >= score_threshold else 0
             else:
                 lf = 0
 
@@ -47,7 +48,7 @@ def make_labeling_matrix(model, dataset, score_threshold=0.6):
             labeling_functions.append(lf)
 
         labeling_matrix.append(labeling_functions)
-        labeling_matrix = np.array(labeling_matrix)
+    labeling_matrix = np.array(labeling_matrix)
 
     return labeling_matrix, true_labels
 

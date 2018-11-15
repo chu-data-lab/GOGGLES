@@ -2,10 +2,10 @@ import os
 
 import torch
 
-from constants import *
-from models.semantic_ae import SemanticAutoencoder
-from train import load_datasets
-from utils.vis import save_prototype_patch_visualization
+from goggles.constants import *
+from goggles.models.semantic_ae import SemanticAutoencoder
+from goggles.train import load_datasets
+from goggles.utils.vis import save_prototype_patch_visualization
 
 
 input_image_size = 128

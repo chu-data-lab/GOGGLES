@@ -37,14 +37,14 @@ class CUBDataset(Dataset):
         self._image_data = list(filter(lambda d: d.is_for_training == is_training, self._image_data))
         self._species_labels = {species: label for label, species in enumerate(required_species)}
 
-        if required_attributes is None and filter_species_ids is not None:
+        if required_attributes is not None:
+            assert type(required_attributes) is list
+            self.attributes = required_attributes
+        elif filter_species_ids is not None:
             attributes = set()
             for species in required_species:
                 attributes = attributes.union(species.attributes)
             self.attributes = list(sorted(attributes, key=lambda a: a.id))
-        elif required_attributes is not None:
-            assert type(required_attributes) is list
-            self.attributes = required_attributes
         self.num_attributes = len(self.attributes)
 
         if transform is not None:
