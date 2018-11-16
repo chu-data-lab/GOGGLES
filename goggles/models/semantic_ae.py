@@ -172,6 +172,12 @@ class SemanticAutoencoder(nn.Module):
                 in nearest_patches_for_prototypes.items():
             self.prototypes.weight[k].data = nearest_patch
 
+    def save_weights(self, filepath):
+        torch.save(self.state_dict(), filepath)
+
+    def load_weights(self, filepath):
+        self.load_state_dict(torch.load(filepath))
+
 
 if __name__ == '__main__':
     import torchvision.transforms as transforms

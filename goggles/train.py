@@ -20,38 +20,6 @@ from goggles.utils.vis import get_image_from_tensor, save_prototype_patch_visual
 _make_cuda = lambda x: x.cuda() if torch.cuda.is_available() else x
 
 
-def load_datasets(input_image_size, *dataset_args):
-    assert len(dataset_args) == 2
-
-    transform_random_flip = transforms.RandomHorizontalFlip()
-    transform_resize = transforms.Scale((input_image_size, input_image_size))
-    transform_to_tensor = transforms.ToTensor()
-    transform_normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-
-    random_transformation = transforms.Compose([
-        transform_random_flip, transform_resize, transform_to_tensor, transform_normalize])
-    deterministic_transformation = transforms.Compose([
-        transform_resize, transform_to_tensor, transform_normalize])
-
-    train_dataset_random = CUBDataset(
-        *dataset_args,
-        transform=random_transformation,
-        is_training=True)
-
-    train_dataset_deterministic = CUBDataset(
-        *dataset_args,
-        transform=deterministic_transformation,
-        is_training=True)
-
-    test_dataset = CUBDataset(
-        *dataset_args,
-        required_attributes=train_dataset_deterministic.attributes,
-        transform=deterministic_transformation,
-        is_training=False)
-
-    return train_dataset_random, train_dataset_deterministic, test_dataset
-
-
 def main():
     input_image_size = 128
     batch_size = 64
@@ -59,18 +27,16 @@ def main():
     patch_size = 1
     num_epochs = 5000
 
-    train_dataset_random, train_dataset_deterministic, \
-        test_dataset = load_datasets(input_image_size, CUB_DATA_DIR, filter_species_ids)
+    train_dataset_with_random_transformation, train_dataset_with_non_random_transformation, \
+        test_dataset = CUBDataset.load_dataset_splits(CUB_DATA_DIR, input_image_size, filter_species_ids)
 
     train_dataloader = DataLoader(
-        train_dataset_random,
+        train_dataset_with_random_transformation,
         collate_fn=CUBDataset.custom_collate_fn,
         batch_size=batch_size, shuffle=True)
 
     model = _make_cuda(SemanticAutoencoder(
-        input_image_size,
-        patch_size,
-        train_dataset_random.num_attributes))
+        input_image_size, patch_size, train_dataset_with_random_transformation.num_attributes))
 
     criterion = _make_cuda(CustomLoss2())
     optimizer = optim.Adam(ifilter(lambda p: p.requires_grad, model.parameters()))
@@ -100,14 +66,14 @@ def main():
         if (epoch % 5 == 0) or (epoch == num_epochs):
             nearest_patches_for_prototypes = \
                 model.get_nearest_patches_for_prototypes(
-                    train_dataset_deterministic)
+                    train_dataset_with_non_random_transformation)
+
             model.reproject_prototypes(nearest_patches_for_prototypes)
 
             if (epoch % 100 == 0) or (epoch == num_epochs):
                 save_prototype_patch_visualization(
-                    model, train_dataset_deterministic,
-                    nearest_patches_for_prototypes,
-                    os.path.join(OUT_DIR, 'prototypes'))
+                    model, train_dataset_with_non_random_transformation,
+                    nearest_patches_for_prototypes, os.path.join(OUT_DIR, 'prototypes'))
 
                 for i_, (image, image_label, attribute_labels, _) in enumerate(test_dataset):
                     x = image.view((1,) + image.size())
@@ -117,7 +83,8 @@ def main():
                     reconstructed_image = get_image_from_tensor(reconstructed_x)
                     reconstructed_image.save(os.path.join(OUT_DIR, 'images', '%d-%d.png' % (epoch, i_)))
 
-    torch.save(model, os.path.join(MODEL_DIR, 'model.pt'))
+                model.save_weights(os.path.join(MODEL_DIR, 'model.pt'))
+    model.save_weights(os.path.join(MODEL_DIR, 'model.pt'))
 
 
 if __name__ == '__main__':

@@ -98,6 +98,36 @@ class CUBDataset(Dataset):
 
         return image, label, attributes, padding_idx
 
+    @staticmethod
+    def load_dataset_splits(root_dir, input_image_size, filter_species_ids):
+        transform_random_flip = transforms.RandomHorizontalFlip()
+        transform_resize = transforms.Scale((input_image_size, input_image_size))
+        transform_to_tensor = transforms.ToTensor()
+        transform_normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+
+        random_transformation = transforms.Compose([
+            transform_random_flip, transform_resize, transform_to_tensor, transform_normalize])
+        non_random_transformation = transforms.Compose([
+            transform_resize, transform_to_tensor, transform_normalize])
+
+        train_dataset_with_random_transformation = CUBDataset(
+            root_dir, filter_species_ids,
+            transform=random_transformation,
+            is_training=True)
+
+        train_dataset_with_non_random_transformation = CUBDataset(
+            root_dir, filter_species_ids,
+            transform=non_random_transformation,
+            is_training=True)
+
+        test_dataset = CUBDataset(
+            root_dir, filter_species_ids,
+            required_attributes=train_dataset_with_non_random_transformation.attributes,
+            transform=non_random_transformation,
+            is_training=False)
+
+        return train_dataset_with_random_transformation, train_dataset_with_non_random_transformation, test_dataset
+
 
 if __name__ == '__main__':
     data_dir = '/Users/nilakshdas/Dev/GOGGLES/data/CUB_200_2011'
