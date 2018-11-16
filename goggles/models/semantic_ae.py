@@ -170,7 +170,8 @@ class SemanticAutoencoder(nn.Module):
     def reproject_prototypes(self, nearest_patches_for_prototypes):
         for k, (nearest_image_patch_idx, nearest_patch) \
                 in nearest_patches_for_prototypes.items():
-            self.prototypes.weight[k].data = nearest_patch
+            # self.prototypes.weight[k].data = nearest_patch
+            self.prototypes.weight[k].data.copy_(nearest_patch)
 
     def save_weights(self, filepath):
         torch.save(self.state_dict(), filepath)
