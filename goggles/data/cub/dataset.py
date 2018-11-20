@@ -130,22 +130,24 @@ class CUBDataset(Dataset):
 
 
 if __name__ == '__main__':
+    from torch.utils.data import DataLoader
+
     data_dir = '/Users/nilakshdas/Dev/GOGGLES/data/CUB_200_2011'
 
-    train_dataset = CUBDataset(data_dir, is_training=True)
-    test_dataset = CUBDataset(data_dir, required_attributes=train_dataset.attributes, is_training=False)
+    train_dataset, _, _ = CUBDataset.load_dataset_splits(
+        data_dir, 128, filter_species_ids=[14, 90])
 
-    count = 0
-    for d, l, a, _ in train_dataset:
-        if d.size(0) < 3:
-            count += 1
-    print(count)
+    num_attributes = train_dataset.num_attributes
+    all_attribute_labels = range(1, num_attributes + 1)
 
-    count = 0
-    for d, l, a, _ in test_dataset:
-        if d.size(0) < 3:
-            count += 1
-    print(count)
+    train_dataloader = DataLoader(
+        train_dataset, collate_fn=CUBDataset.custom_collate_fn,
+        batch_size=4, shuffle=True)
 
-    print(len(train_dataset))
-    print(len(test_dataset))
+    for image, label, batch_attribute_labels, padding_idx in train_dataloader:
+        for image_attribute_labels in batch_attribute_labels:
+            print(image_attribute_labels[:10])
+            print(torch.LongTensor(list(filter(
+                lambda al: al not in image_attribute_labels,
+                all_attribute_labels))))
+            print('---')

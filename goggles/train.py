@@ -37,16 +37,21 @@ def main():
     if filter_species_ids is not None:
         writer.add_text('param/filter_species_ids', str(filter_species_ids))
 
-    train_dataset_with_random_transformation, train_dataset_with_non_random_transformation, \
-        test_dataset = CUBDataset.load_dataset_splits(CUB_DATA_DIR, input_image_size, filter_species_ids)
+    train_dataset, train_dataset_with_non_random_transformation, \
+        test_dataset = CUBDataset.load_dataset_splits(
+        CUB_DATA_DIR, input_image_size, filter_species_ids)
+
+    num_attributes = train_dataset.num_attributes
+    all_attribute_labels = range(1, num_attributes + 1)
+    attribute_names = [train_dataset.get_attribute(al).name
+                       for al in all_attribute_labels]
 
     train_dataloader = DataLoader(
-        train_dataset_with_random_transformation,
-        collate_fn=CUBDataset.custom_collate_fn,
+        train_dataset, collate_fn=CUBDataset.custom_collate_fn,
         batch_size=batch_size, shuffle=True)
 
     model = _make_cuda(SemanticAutoencoder(
-        input_image_size, patch_size, train_dataset_with_random_transformation.num_attributes))
+        input_image_size, patch_size, train_dataset.num_attributes))
 
     criterion = _make_cuda(CustomLoss2())
     optimizer = optim.Adam(ifilter(lambda p: p.requires_grad, model.parameters()))
@@ -55,33 +60,36 @@ def main():
     for epoch in pbar:
         epoch_loss = 0.
 
-        for i, (image, label, attribute_labels, padding_idx) in enumerate(train_dataloader, 1):
+        for image, label, attribute_labels, padding_idx in train_dataloader:
+            steps += 1
             model.zero_grad()
 
             x = _make_cuda(torch.autograd.Variable(image))
             z, z_patches, reconstructed_x = model(x)
 
             prototype_labels = _make_cuda(attribute_labels)
-            prototypes = model.prototypes(prototype_labels)
+            positive_prototypes = model.prototypes(prototype_labels)
 
-            loss = criterion(reconstructed_x, z_patches, prototypes, padding_idx, x)
+            negative_prototypes = list()
+            for img_al in attribute_labels:
+                negative_al = _make_cuda(torch.LongTensor(list(filter(
+                    lambda al: al not in img_al,
+                    all_attribute_labels))))
+                negative_prototypes.append(model.prototypes(negative_al))
+
+            loss = criterion(reconstructed_x, z_patches,
+                             positive_prototypes, padding_idx, x,
+                             negative_prototypes=negative_prototypes)
 
             loss.backward()
             optimizer.step()
 
             epoch_loss += loss.item()
-            steps += 1
 
-            writer.add_scalar('result/step_loss', loss, steps)
+            writer.add_scalar('loss/step_loss', loss, steps)
 
-        epoch_loss = epoch_loss
-        writer.add_scalar('result/average_epoch_loss', epoch_loss, steps)
-        pbar.set_description('average_epoch_loss=%0.05f' % epoch_loss)
-
-        num_attributes = train_dataset_with_non_random_transformation.num_attributes
-        attribute_names = [
-            train_dataset_with_non_random_transformation.get_attribute(al).name
-            for al in range(1, num_attributes + 1)]
+        writer.add_scalar('loss/epoch_loss', epoch_loss, steps)
+        pbar.set_description('epoch_loss=%0.05f' % epoch_loss)
 
         if (epoch % 5 == 0) or (epoch == num_epochs):
             nearest_patches_for_prototypes = \
@@ -89,11 +97,6 @@ def main():
                     train_dataset_with_non_random_transformation)
 
             model.reproject_prototypes(nearest_patches_for_prototypes)
-
-            writer.add_embedding(
-                model.prototypes.weight[1:],
-                metadata=attribute_names,
-                global_step=steps)
 
             if (epoch % 100 == 0) or (epoch == num_epochs):
                 save_prototype_patch_visualization(
@@ -109,6 +112,12 @@ def main():
                     reconstructed_image.save(os.path.join(OUT_DIR, 'images', '%d-%d.png' % (epoch, i_)))
 
                 model.save_weights(os.path.join(MODEL_DIR, 'model.pt'))
+
+        if epoch == num_epochs:
+            writer.add_embedding(
+                model.prototypes.weight[1:],
+                metadata=attribute_names,
+                global_step=steps)
     model.save_weights(os.path.join(MODEL_DIR, 'model.pt'))
     writer.close()
 

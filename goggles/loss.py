@@ -86,7 +86,9 @@ class CustomLoss2(object):
         self._reconstruction_loss = F.mse_loss
         self._bxent_loss = nn.BCEWithLogitsLoss(size_average=False)
 
-    def __call__(self, reconstructed_x, z_patches, prototypes, padding_idx, x):
+    def __call__(self, reconstructed_x, z_patches,
+                 prototypes, padding_idx, x,
+                 negative_prototypes=None):
         """
             reconstructed_x : batch_size, channels, height, width
             z_patches       : batch_size, num_patches, embedding_dim
@@ -115,6 +117,17 @@ class CustomLoss2(object):
             targets = targets[nearest_patch_idxs]
 
             loss += lambda_val * self.custom_cross_entropy(sims, targets)
+
+            if negative_prototypes is not None:
+                not_associated_prototypes = negative_prototypes[i]
+
+                negative_sims = pairwise_cosine_similarities(
+                    not_associated_prototypes, image_patches)
+                negative_targets = self._make_cuda(
+                    torch.zeros_like(negative_sims))
+
+                loss += lambda_val * self.custom_cross_entropy(
+                    negative_sims, negative_targets)
 
         loss = loss / batch_size
         return loss
