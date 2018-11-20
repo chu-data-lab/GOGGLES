@@ -9,6 +9,7 @@ def make_labeling_matrix(model, dataset, score_threshold=0.6):
     """
     labeling_matrix = list()
     true_labels = list()
+    scores = list()
 
     all_labels = dataset.get_labels()
     all_species = all_labels.values()
@@ -47,8 +48,13 @@ def make_labeling_matrix(model, dataset, score_threshold=0.6):
             assert lf is not None
             labeling_functions.append(lf)
 
+            prototype_scores = [v for k, v in sorted(prototype_scores.items(), key=lambda x: x[0])]
+            scores.append(prototype_scores)
+
         labeling_matrix.append(labeling_functions)
+
+    scores = np.array(scores)
     labeling_matrix = np.array(labeling_matrix)
 
-    return labeling_matrix, true_labels
+    return labeling_matrix, scores, true_labels
 
