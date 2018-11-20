@@ -48,9 +48,10 @@ def make_labeling_matrix(model, dataset, score_threshold=0.6):
             assert lf is not None
             labeling_functions.append(lf)
 
-            prototype_scores = [v for k, v in sorted(prototype_scores.items(), key=lambda x: x[0])]
-            scores.append(prototype_scores)
+        prototype_scores = [v for k, v in sorted(prototype_scores.items(),
+                                                 key=lambda x: x[0])]
 
+        scores.append(prototype_scores)
         labeling_matrix.append(labeling_functions)
 
     scores = np.array(scores)
