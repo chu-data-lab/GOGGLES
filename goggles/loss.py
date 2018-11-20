@@ -114,7 +114,7 @@ class CustomLoss2(object):
             targets = self._make_cuda(torch.eye(num_patches))
             targets = targets[nearest_patch_idxs]
 
-            loss += lambda_val * self._bxent_loss(sims, targets)
+            loss += lambda_val * self.custom_cross_entropy(sims, targets)
 
         loss = loss / batch_size
         return loss
@@ -129,6 +129,18 @@ class CustomLoss2(object):
             self._bxent_loss.cuda(device)
 
         return self
+
+    @staticmethod
+    def custom_cross_entropy(x, y):
+        sigmoid_x = F.sigmoid(x)
+        sigmoid_x2 = F.sigmoid(x ** 2)
+        neg_log_sigmoid_x = -1 * torch.log(sigmoid_x)
+        neg_log_1_minus_sigmoid_x2 = -1 * torch.log(1 - sigmoid_x2)
+
+        l1 = torch.mul(y, neg_log_sigmoid_x)
+        l2 = torch.mul(1 - y, neg_log_1_minus_sigmoid_x2)
+
+        return torch.sum(l1 + l2)
 
 
 if __name__ == '__main__':
