@@ -9,6 +9,4 @@ __MACOSX
 /_scratch/*
 !/_scratch/.gitkeep
 
-/out/
-
 snorkel.db
