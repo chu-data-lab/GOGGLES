@@ -19,7 +19,6 @@ download() {
 
     echo "[${TIMESTAMP}] Downloading ${DOWNLOAD_URL} to ${TARGET_DIR}"
 
-    mkdir -p "${TARGET_DIR}"
     wget -q --show-progress "${DOWNLOAD_URL}" -P "${TARGET_DIR}"
 }
 
@@ -29,7 +28,7 @@ untar_and_cleanup() {
 
     echo "[${TIMESTAMP}] Extracting data from $1"
 
-    tar -C "${TARGET_DIR}" -xzvf "${TARGET_FILEPATH}"
+    tar -C "${TARGET_DIR}" -xzf "${TARGET_FILEPATH}"
     rm -f "${TARGET_FILEPATH}"
 }
 
@@ -56,6 +55,8 @@ declare -r SCRATCH_DIR=$(cd "$1" && pwd)
 
 DOWNLOAD_TARGET_DIR="${SCRATCH_DIR}/CUB_200_2011"
 DOWNLOAD_FILENAME=$(basename "${CUB_DOWNLOAD_URL}")
+
+mkdir -p "${DOWNLOAD_TARGET_DIR}"
 
 download "${CUB_DOWNLOAD_URL}" "${DOWNLOAD_TARGET_DIR}"
 untar_and_cleanup "${DOWNLOAD_TARGET_DIR}/${DOWNLOAD_FILENAME}"
