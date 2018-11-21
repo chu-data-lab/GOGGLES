@@ -2,9 +2,14 @@
 
 ## Installation and Setup
 
-### Setup Dependencies
+### Setup dependencies
 ```bash
 pip install -r requirements.txt
+```
+
+### Download the data
+```bash
+bash tools/get_cub_dataset.sh _scratch
 ```
 
 ## Example Usage
