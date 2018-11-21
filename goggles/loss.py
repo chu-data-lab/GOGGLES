@@ -145,8 +145,8 @@ class CustomLoss2(object):
 
     @staticmethod
     def custom_cross_entropy(x, y):
-        sigmoid_x = F.sigmoid(x)
-        sigmoid_x2 = F.sigmoid(x ** 2)
+        sigmoid_x = torch.sigmoid(x)
+        sigmoid_x2 = torch.sigmoid(x ** 2)
         neg_log_sigmoid_x = -1 * torch.log(sigmoid_x)
         neg_log_1_minus_sigmoid_x2 = -1 * torch.log(1 - sigmoid_x2)
 
