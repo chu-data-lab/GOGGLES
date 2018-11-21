@@ -6,7 +6,9 @@ __MACOSX
 .idea/
 .ipynb_checkpoints/
 
-/data/
+/_scratch/*
+!/_scratch/.gitkeep
+
 /out/
 
 snorkel.db
