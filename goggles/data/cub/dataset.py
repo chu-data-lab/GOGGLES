@@ -100,13 +100,21 @@ class CUBDataset(Dataset):
 
     @staticmethod
     def load_dataset_splits(root_dir, input_image_size, filter_species_ids):
-        transform_random_flip = transforms.RandomHorizontalFlip()
-        transform_resize = transforms.Scale((input_image_size, input_image_size))
+        try:
+            transform_resize = transforms.Resize(
+                (input_image_size, input_image_size))
+        except AttributeError:
+            transform_resize = transforms.Scale(
+                (input_image_size, input_image_size))
+
         transform_to_tensor = transforms.ToTensor()
-        transform_normalize = transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+        transform_random_flip = transforms.RandomHorizontalFlip()
+        transform_normalize = transforms.Normalize((0.5, 0.5, 0.5),
+                                                   (0.5, 0.5, 0.5))
 
         random_transformation = transforms.Compose([
-            transform_random_flip, transform_resize, transform_to_tensor, transform_normalize])
+            transform_random_flip, transform_resize,
+            transform_to_tensor, transform_normalize])
         non_random_transformation = transforms.Compose([
             transform_resize, transform_to_tensor, transform_normalize])
 

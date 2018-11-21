@@ -105,8 +105,7 @@ def load_cub_metadata(cub_data_dir):
         "066.Western_Gull/Western_Gull_0002_54825.jpg",
         "093.Clark_Nutcracker/Clark_Nutcracker_0020_85099.jpg",
         "087.Mallard/Mallard_0130_76836.jpg",
-        "108.White_necked_Raven/White_Necked_Raven_0070_102645.jpg"
-    ]
+        "108.White_necked_Raven/White_Necked_Raven_0070_102645.jpg"]
     with open(datum_file, 'r') as f:
         for l in f.readlines():
             id_, path = l.strip().split()
