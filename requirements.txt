@@ -1,3 +1,4 @@
+gitpython
 numpy==1.15.1
 sacred==0.7.4
 tensorboardX==1.4
