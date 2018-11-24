@@ -3,6 +3,8 @@ __MACOSX
 
 *.pyc
 
+*.ignore.*
+
 .idea/
 .ipynb_checkpoints/
 

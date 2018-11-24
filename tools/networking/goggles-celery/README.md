@@ -25,6 +25,8 @@ export GOGGLES_BASE_DIR="/path/to/GOGGLES"
 export GOGGLES_NETWORK_HOST="127.0.0.1"
 export GOGGLES_BROKER_URL="amqp://admin:password@${GOGGLES_NETWORK_HOST}:5672/goggles"
 export GOGGLES_BACKEND_URL="redis://${GOGGLES_NETWORK_HOST}:6379"
+
+source activate ${GOGGLES_ENV}
 ```
 
 ### Start the celery daemon
