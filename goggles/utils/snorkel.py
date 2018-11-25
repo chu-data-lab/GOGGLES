@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def make_labeling_matrix(model, dataset, score_threshold=0.6):
+def make_labeling_matrix(model, dataset, score_thresholds):
     """
     :type model: goggles.models.semantic_ae.SemanticAutoencoder
     :type dataset: goggles.data.cub.dataset.CUBDataset
@@ -39,9 +39,9 @@ def make_labeling_matrix(model, dataset, score_threshold=0.6):
             lf = None
             if attribute not in common_attributes:
                 if attribute in species_1.attributes:
-                    lf = -1 if prototype_scores[attribute_label] >= score_threshold else 0
+                    lf = -1 if prototype_scores[attribute_label] >= score_thresholds[attribute_label] else 0
                 else:
-                    lf = 1 if prototype_scores[attribute_label] >= score_threshold else 0
+                    lf = 1 if prototype_scores[attribute_label] >= score_thresholds[attribute_label] else 0
             else:
                 lf = 0
 
