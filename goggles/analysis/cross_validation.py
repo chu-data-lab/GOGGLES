@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 import numpy as np
-from sklearn.metrics import f1_score
+from sklearn.metrics import f1_score, accuracy_score
 
 
 def get_best_thresholds(model, dataset):
@@ -59,13 +59,48 @@ def get_best_thresholds(model, dataset):
                                     else undesired_label
                                     for score in scores]
 
-                performance = f1_score(true_labels, predicted_labels,
-                                       pos_label=desired_label)
+                # performance = f1_score(true_labels, predicted_labels,
+                #                        pos_label=desired_label)
+                performance = accuracy_score(true_labels, predicted_labels)
 
-                if performance > best_performance:
+                if performance >= best_performance:
                     thresholds[attribute_label] = threshold
                     best_performance = performance
         else:
             thresholds[attribute_label] = 1.
 
     return thresholds
+
+def get_attribute_labels(model, dataset):
+    """
+    :type model: goggles.models.semantic_ae.SemanticAutoencoder
+    :type dataset: goggles.data.cub.dataset.CUBDataset
+    """
+
+    all_labels = dataset.get_labels()
+    all_species = all_labels.values()
+    all_species = list(sorted(
+        all_species, key=lambda s:s.id))
+
+    assert len(all_species) == 2  # binary labeling functions
+    species_1, species_2 = all_labels[0], all_labels[1]
+
+    all_attributes = set()
+    for species in all_species:
+        all_attributes = all_attributes.union(species.attributes)
+
+    common_attributes = set(attr for attr in all_attributes)
+    for species in all_species:
+        common_attributes = common_attributes.intersection(species.attributes)
+
+    labels = dict()
+    for attribute in sorted(all_attributes, key=lambda a: a.id):
+        attribute_label = dataset.get_attribute_label(attribute)
+
+        desired_label = None
+        if attribute not in common_attributes:
+            labels[attribute_label] = -1 if attribute in species_1.attributes else 1
+        else:
+            labels[attribute_label] = 0
+
+    return labels
