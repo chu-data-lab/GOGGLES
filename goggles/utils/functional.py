@@ -1,6 +1,8 @@
+from types import SimpleNamespace
+
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 
 def pairwise_squared_euclidean_distances(embeddings1, embeddings2):
@@ -31,3 +33,18 @@ def pairwise_cosine_similarities(embeddings1, embeddings2):
 
     sims = torch.mm(embeddings1_, embeddings2_.t())
     return sims  # num_embeddings1 x num_embeddings2
+
+
+def get_performance_metrics(true_labels, predicted_labels):
+    a = accuracy_score(y_true=true_labels, y_pred=predicted_labels)
+    p = precision_score(y_true=true_labels, y_pred=predicted_labels)
+    r = recall_score(y_true=true_labels, y_pred=predicted_labels)
+    f1 = f1_score(y_true=true_labels, y_pred=predicted_labels)
+
+    performance_metrics = SimpleNamespace(
+        accuracy_score=a,
+        precision_score = p,
+        recall_score = r,
+        f1_score = f1)
+
+    return performance_metrics
