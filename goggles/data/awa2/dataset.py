@@ -6,29 +6,28 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-#from goggles.constants import CACHE_DIR
-#from goggles.data.animals_with_attributes.metadata import load_animals_metadata
-from metadata import load_animals_metadata
+from goggles.constants import CACHE_DIR
+from goggles.data.awa2.metadata import load_awa2_metadata
 
 
-class AnimalsDataset(Dataset):
+class AwA2Dataset(Dataset):
     def __init__(self, root,
                  filter_species_ids=None,
                  required_attributes=None,
                  transform=None,
                  is_training=False,
-                 cachedir=None):
-        super(AnimalsDataset, self).__init__()
+                 cachedir=CACHE_DIR):
+        super(AwA2Dataset, self).__init__()
 
-        # mem = Memory(cachedir)
-        # metadata_loader = mem.cache()
+        mem = Memory(cachedir)
+        metadata_loader = mem.cache(load_awa2_metadata)
 
         self.is_training = is_training
         self._data_dir = root
 
         required_species, \
-        self.attributes, \
-        self._image_data = load_animals_metadata(root)
+            self.attributes, \
+            self._image_data = metadata_loader(root)  # load_awa2_metadata(root) cached
 
         if filter_species_ids is not None:
             assert type(filter_species_ids) is list
@@ -41,7 +40,6 @@ class AnimalsDataset(Dataset):
         if required_attributes is not None:
             assert type(required_attributes) is list
             self.attributes = required_attributes
-
         elif filter_species_ids is not None:
             attributes = set()
             for species in required_species:
@@ -60,7 +58,7 @@ class AnimalsDataset(Dataset):
     def __getitem__(self, idx):
         datum = self._image_data[idx]
 
-        image_file = "" #IMAGE PATH like os.path.join(self._data_dir, 'CUB_200_2011', 'images', datum.path)
+        image_file = os.path.join(self._data_dir, 'Animals_with_Attributes2', 'JPEGImages', datum.path)
         image = Image.open(image_file)
         image = self._transform(image)
 
@@ -120,17 +118,17 @@ class AnimalsDataset(Dataset):
         non_random_transformation = transforms.Compose([
             transform_resize, transform_to_tensor, transform_normalize])
 
-        train_dataset_with_random_transformation = AnimalsDataset(
+        train_dataset_with_random_transformation = AwA2Dataset(
             root_dir, filter_species_ids,
             transform=random_transformation,
             is_training=True)
 
-        train_dataset_with_non_random_transformation = AnimalsDataset(
+        train_dataset_with_non_random_transformation = AwA2Dataset(
             root_dir, filter_species_ids,
             transform=non_random_transformation,
             is_training=True)
 
-        test_dataset = AnimalsDataset(
+        test_dataset = AwA2Dataset(
             root_dir, filter_species_ids,
             required_attributes=train_dataset_with_non_random_transformation.attributes,
             transform=non_random_transformation,
@@ -138,19 +136,20 @@ class AnimalsDataset(Dataset):
 
         return train_dataset_with_random_transformation, train_dataset_with_non_random_transformation, test_dataset
 
+
 if __name__ == '__main__':
     from torch.utils.data import DataLoader
 
     data_dir = '/media/seagate/rtorrent/AwA2/Animals_with_Attributes2'
 
-    train_dataset, _, _ = AnimalsDataset.load_dataset_splits(
+    train_dataset, _, _ = AwA2Dataset.load_dataset_splits(
         data_dir, 128, filter_species_ids=[14, 20])
 
     num_attributes = train_dataset.num_attributes
     all_attribute_labels = range(1, num_attributes + 1)
 
     train_dataloader = DataLoader(
-        train_dataset, collate_fn=AnimalsDataset.custom_collate_fn,
+        train_dataset, collate_fn=AwA2Dataset.custom_collate_fn,
         batch_size=4, shuffle=True)
 
     for image, label, batch_attribute_labels, padding_idx in train_dataloader:

@@ -1,7 +1,7 @@
 import os
 import glob
-from collections import defaultdict
 import numpy as np
+
 
 class _NamedClass(object):
     def __init__(self, name):
@@ -23,13 +23,9 @@ class Attribute(_NamedClass):
 
         self.id = id_
 
-    @property
-    def higher_order_name(self):
-        return self.name.split('::')[0]
-
 
 class AttributeAnnotation(Attribute):
-    def __init__(self, id_, name, certainty=1):
+    def __init__(self, id_, name):
         super(AttributeAnnotation, self).__init__(id_, name)
 
 
@@ -71,7 +67,6 @@ class Species(_NamedClass):
 
         self.id = id_
         self.attributes = attributes
-        self.name = name
 
     def add_attribute(self, attribute):
         assert isinstance(attribute, Attribute)
@@ -79,9 +74,11 @@ class Species(_NamedClass):
         self.attributes.add(attribute)
 
 
-def load_animals_metadata(animal_data_dir):
+def load_awa2_metadata(awa2_data_dir, train_split=0.8):
+    awa2_data_dir = os.path.join(awa2_data_dir, 'Animals_with_Attributes2')
+
     attributes_by_id = dict()
-    attributes_file = os.path.join(animal_data_dir, 'predicates.txt')
+    attributes_file = os.path.join(awa2_data_dir, 'predicates.txt')
     with open(attributes_file, 'r') as f:
         for l in f.readlines():
             id_, name = l.strip().split()
@@ -89,47 +86,50 @@ def load_animals_metadata(animal_data_dir):
             attributes_by_id[id_] = Attribute(id_, name)
 
     species_by_id = dict()
-    species_file = os.path.join(animal_data_dir, 'classes.txt')
+    species_file = os.path.join(awa2_data_dir, 'classes.txt')
     with open(species_file, 'r') as f:
         for l in f.readlines():
             id_, name = l.strip().split()
             id_ = int(id_)
             species_by_id[id_] = Species(id_, name)
 
-    predicate_matrix = np.loadtxt(os.path.join(animal_data_dir, 'predicate-matrix-binary.txt'))
-    attributes_by_species_id = defaultdict(list)
-    num_species = 50
-    num_predicates = 85
+    predicate_matrix = \
+        np.loadtxt(os.path.join(awa2_data_dir, 'predicate-matrix-binary.txt'))
+    num_species = len(species_by_id)
+    num_predicates = len(attributes_by_id)
     for i in range(num_species):
+        species_id = i + 1
+        species = species_by_id[species_id]
+
         for j in range(num_predicates):
+            attribute_id = j + 1
+            attribute = attributes_by_id[attribute_id]
+
             if predicate_matrix[i][j] == 1:
-                attributes_by_species_id[i + 1].append(j + 1) #species and attributes are 1-indexed
+                species.add_attribute(attribute)
 
     datum_by_id = dict()
-    datum_folder = os.path.join(animal_data_dir, 'JPEGImages', '*.jpg')
-    id_ = 0
     for species_id in species_by_id:
-        entered = False
-        datum_folder = os.path.join(animal_data_dir, 'JPEGImages', species_by_id[species_id].name, '*.jpg')
-        for image_path in glob.glob(datum_folder):
-            id_ += 1
-            print id_,  image_path
-            sub_path = os.path.join(image_path.split('/')[7], image_path.split('/')[8])
-            datum_by_id[id_] = Datum(id_, sub_path, species_by_id[species_id])
-            for attribute_id in attributes_by_species_id[species_id]:
-                attribute_annotation_obj = AttributeAnnotation(attribute_id, attributes_by_id[attribute_id].name)
-                datum_by_id[id_].add_attribute_annotation(attribute_annotation_obj)
-                if entered == False:
-                    species_by_id[species_id].add_attribute(attributes_by_id[attribute_id])
-            entered = True
+        species = species_by_id[species_id]
+        species_data = list()
+        for image_path in glob.glob(os.path.join(
+                awa2_data_dir, 'JPEGImages', species.name, '*.jpg')):
+            datum_id = os.path.basename(image_path)
+            datum_path = os.path.join(species.name, datum_id)
+            datum = Datum(datum_id, datum_path, species)
 
-    total_images = id_
-    train_num = 0.7 * total_images
-    for i, image_id in enumerate(datum_by_id):
-        if i <= train_num:
-            datum_by_id[image_id].is_for_training = True
-        else:
-            datum_by_id[image_id].is_for_training = False
+            for attribute in species.attributes:
+                datum.add_attribute_annotation(
+                    AttributeAnnotation(attribute.id, attribute.name))
+
+            datum_by_id[datum_id] = datum
+            species_data.append(datum)
+
+        species_data = sorted(species_data, key=lambda d: d.id)
+        num_train = int(train_split * len(species_data))
+        for i in range(len(species_data)):
+            is_for_training = i < num_train
+            species_data[i].set_for_training(is_for_training)
 
     all_species, all_attributes, all_images_data = \
         list(sorted(species_by_id.values(), key=lambda s: s.id)), \
@@ -137,9 +137,3 @@ def load_animals_metadata(animal_data_dir):
         list(sorted(datum_by_id.values(), key=lambda d: d.id))
 
     return all_species, all_attributes, all_images_data
-
-if __name__ == '__main__':
-    # from goggles.constants import *
-    ANIMALS_DIR = '/media/seagate/rtorrent/AwA2/Animals_with_Attributes2'
-
-    print(load_animals_metadata(ANIMALS_DIR))
