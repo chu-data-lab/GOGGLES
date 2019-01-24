@@ -94,7 +94,7 @@ def load_animals_metadata(animal_data_dir):
             species_by_id[id_] = Species(id_, name)
 
     datum_by_id = dict()
-    datum_folder = os.path.join(animal_data_dir, 'JPEGImages')
+    datum_folder = os.path.join(animal_data_dir, 'JPEGImages', '*.jpg')
     for i, image in enumerate(glob.glob(datum_folder)):
         print i, image
         if i == 5:
@@ -110,6 +110,7 @@ def load_animals_metadata(animal_data_dir):
     # return all_species, all_attributes, all_images_data
 
 if __name__ == '__main__':
-    from goggles.constants import *
+    # from goggles.constants import *
+    ANIMALS_DIR = '/media/seagate/rtorrent/AwA2/Animals_with_Attributes2'
 
     print(load_animals_metadata(ANIMALS_DIR))
