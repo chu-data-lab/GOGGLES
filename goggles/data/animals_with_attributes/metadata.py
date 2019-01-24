@@ -1,5 +1,7 @@
 import os
 import glob
+from collections import defaultdict
+import numpy as np
 
 class _NamedClass(object):
     def __init__(self, name):
@@ -27,7 +29,7 @@ class Attribute(_NamedClass):
 
 
 class AttributeAnnotation(Attribute):
-    def __init__(self, id_, name, certainty):
+    def __init__(self, id_, name, certainty=1):
         super(AttributeAnnotation, self).__init__(id_, name)
 
 
@@ -94,16 +96,32 @@ def load_animals_metadata(animal_data_dir):
             id_ = int(id_)
             species_by_id[id_] = Species(id_, name)
 
+    predicate_matrix = np.loadtxt(os.path.join(animal_data_dir, 'predicate-matrix-binary.txt'))
+    attributes_by_species_id = defaultdict(list)
+    num_species = 50
+    num_predicates = 85
+    for i in range(num_species):
+        for j in range(num_predicates):
+            if predicate_matrix[i][j] == 1:
+                attributes_by_species_id[i + 1].append(j + 1) #species and attributes are 1-indexed
+
     datum_by_id = dict()
     datum_folder = os.path.join(animal_data_dir, 'JPEGImages', '*.jpg')
     id_ = 0
     for species_id in species_by_id:
+        entered = False
         datum_folder = os.path.join(animal_data_dir, 'JPEGImages', species_by_id[species_id].name, '*.jpg')
         for image_path in glob.glob(datum_folder):
             id_ += 1
-            print id, image_path
+            print id_,  image_path
             sub_path = os.path.join(image_path.split('/')[7], image_path.split('/')[8])
-            datum_by_id[id] = Datum(id_, sub_path, species_by_id[species_id])
+            datum_by_id[id_] = Datum(id_, sub_path, species_by_id[species_id])
+            for attribute_id in attributes_by_species_id[species_id]:
+                attribute_annotation_obj = AttributeAnnotation(attribute_id, attributes_by_id[attribute_id].name)
+                datum_by_id[id_].add_attribute_annotation(attribute_annotation_obj)
+                if entered == False:
+                    species_by_id[species_id].add_attribute(attributes_by_id[attribute_id])
+            entered = True
             if id_ == 10:
                 break
 
