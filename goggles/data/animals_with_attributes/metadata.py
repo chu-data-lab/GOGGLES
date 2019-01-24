@@ -69,6 +69,7 @@ class Species(_NamedClass):
 
         self.id = id_
         self.attributes = attributes
+        self.name = name
 
     def add_attribute(self, attribute):
         assert isinstance(attribute, Attribute)
@@ -96,7 +97,7 @@ def load_animals_metadata(animal_data_dir):
     datum_by_id = dict()
     datum_folder = os.path.join(animal_data_dir, 'JPEGImages', '*.jpg')
     for species_id in species_by_id:
-        datum_folder = os.path.join(animal_data_dir, 'JPEGImages', species_by_id[id_], '*.jpg')
+        datum_folder = os.path.join(animal_data_dir, 'JPEGImages', species_by_id[species_id].name, '*.jpg')
         for i, image in enumerate(glob.glob(datum_folder)):
             print i, image
             if i == 5:
