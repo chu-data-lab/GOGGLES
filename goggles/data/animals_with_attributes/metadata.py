@@ -95,10 +95,12 @@ def load_animals_metadata(animal_data_dir):
 
     datum_by_id = dict()
     datum_folder = os.path.join(animal_data_dir, 'JPEGImages', '*.jpg')
-    for i, image in enumerate(glob.glob(datum_folder)):
-        print i, image
-        if i == 5:
-            break
+    for species_id in species_by_id:
+        datum_folder = os.path.join(animal_data_dir, 'JPEGImages', species_by_id[id_], '*.jpg')
+        for i, image in enumerate(glob.glob(datum_folder)):
+            print i, image
+            if i == 5:
+                break
 
 
 
