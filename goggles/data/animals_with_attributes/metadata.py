@@ -96,21 +96,31 @@ def load_animals_metadata(animal_data_dir):
 
     datum_by_id = dict()
     datum_folder = os.path.join(animal_data_dir, 'JPEGImages', '*.jpg')
+    id_ = 0
     for species_id in species_by_id:
         datum_folder = os.path.join(animal_data_dir, 'JPEGImages', species_by_id[species_id].name, '*.jpg')
-        for i, image in enumerate(glob.glob(datum_folder)):
-            print i, image
-            if i == 5:
+        for image_path in glob.glob(datum_folder):
+            id_ += 1
+            print id, image_path
+            sub_path = os.path.join(image_path.split('/')[7], image_path.split('/')[8])
+            datum_by_id[id] = Datum(id_, sub_path, species_by_id[species_id])
+            if id_ == 10:
                 break
 
+    total_images = id_
+    train_num = 0.7 * total_images
+    for i, image_id in enumerate(datum_by_id):
+        if i <= train_num:
+            datum_by_id[image_id].is_for_training = True
+        else:
+            datum_by_id[image_id].is_for_training = False
 
+    all_species, all_attributes, all_images_data = \
+        list(sorted(species_by_id.values(), key=lambda s: s.id)), \
+        list(sorted(attributes_by_id.values(), key=lambda a: a.id)), \
+        list(sorted(datum_by_id.values(), key=lambda d: d.id))
 
-    # all_species, all_attributes, all_images_data = \
-    #     list(sorted(species_by_id.values(), key=lambda s: s.id)), \
-    #     list(sorted(attributes_by_id.values(), key=lambda a: a.id)), \
-    #     list(sorted(datum_by_id.values(), key=lambda d: d.id))
-    #
-    # return all_species, all_attributes, all_images_data
+    return all_species, all_attributes, all_images_data
 
 if __name__ == '__main__':
     # from goggles.constants import *
