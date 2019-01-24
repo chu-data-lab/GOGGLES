@@ -14,7 +14,6 @@ from tqdm import tqdm
 
 from constants import *
 sys.path.append(BASE_DIR)
-from goggles.data.cub.dataset import CUBDataset
 from goggles.loss import CustomLoss2
 from goggles.models.semantic_ae import SemanticAutoencoder
 from goggles.utils.vis import \
@@ -38,6 +37,7 @@ def _provision_run_dir(run_dir):
 @ex.config
 def default_config():
     seed = 42                # RNG seed for the experiment
+    dataset = 'cub'            # Dataset to be used (cub/awa2)
     filter_class_ids = None  # Class IDs used for training, uses all classes if None
     input_image_size = 128   # All images are resized to this value
     patch_size = 1           # Size of the patch that is flattened from the encoded output
@@ -49,6 +49,7 @@ def default_config():
 @ex.main
 def main(_run, _log,
          seed,
+         dataset,
          filter_class_ids,
          input_image_size,
          patch_size,
@@ -77,13 +78,15 @@ def main(_run, _log,
     writer = SummaryWriter(LOGS_DIR)
 
     # Load datasets for training and testing
+    Dataset = DATASET_MAP[dataset]
+    data_dir = DATA_DIR_MAP[dataset]
     train_dataset, train_dataset_with_non_random_transformation, \
-        test_dataset = CUBDataset.load_dataset_splits(
-        CUB_DATA_DIR, input_image_size, filter_class_ids)
+        test_dataset = Dataset.load_dataset_splits(
+        data_dir, input_image_size, filter_class_ids)
 
     # Initialize the data loader
     train_dataloader = DataLoader(
-        train_dataset, collate_fn=CUBDataset.custom_collate_fn,
+        train_dataset, collate_fn=Dataset.custom_collate_fn,
         batch_size=batch_size, shuffle=True)
 
     # Define variables for attributes

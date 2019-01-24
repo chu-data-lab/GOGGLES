@@ -22,6 +22,7 @@ python goggles/train.py print_config
 Run a training experiment:
 ```bash
 python goggles/train.py with \
+  dataset=cub \
   filter_class_ids=14,90 \
   num_epochs=25000 \
   loss_lambda=0.01

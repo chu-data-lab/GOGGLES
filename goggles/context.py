@@ -2,7 +2,6 @@ import json
 import torch
 from types import SimpleNamespace
 from goggles.constants import *
-from goggles.data.cub.dataset import CUBDataset
 from goggles.models.semantic_ae import SemanticAutoencoder
 
 
@@ -16,11 +15,14 @@ def load_context_from_run_id(run_id):
 
     input_image_size = config['input_image_size']
     patch_size = config['patch_size']
+    dataset = config['dataset']
     filter_class_ids = config['filter_class_ids']
 
+    Dataset = DATASET_MAP[dataset]
+    data_dir = DATA_DIR_MAP[dataset]
     _, train_dataset, test_dataset = \
-        CUBDataset.load_dataset_splits(
-            CUB_DATA_DIR, input_image_size,
+        Dataset.load_dataset_splits(
+            data_dir, input_image_size,
             filter_class_ids)
 
     model = SemanticAutoencoder(
