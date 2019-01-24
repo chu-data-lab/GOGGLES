@@ -6,8 +6,9 @@ import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
-from goggles.constants import CACHE_DIR
-from goggles.data.animals_with_attributes.metadata import load_animals_metadata
+#from goggles.constants import CACHE_DIR
+#from goggles.data.animals_with_attributes.metadata import load_animals_metadata
+from metadata import load_animals_metadata
 
 
 class AnimalsDataset(Dataset):
