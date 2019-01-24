@@ -137,5 +137,29 @@ class AnimalsDataset(Dataset):
 
         return train_dataset_with_random_transformation, train_dataset_with_non_random_transformation, test_dataset
 
+if __name__ == '__main__':
+    from torch.utils.data import DataLoader
+
+    data_dir = '/media/seagate/rtorrent/AwA2/Animals_with_Attributes2'
+
+    train_dataset, _, _ = AnimalsDataset.load_dataset_splits(
+        data_dir, 128, filter_species_ids=[14, 20])
+
+    num_attributes = train_dataset.num_attributes
+    all_attribute_labels = range(1, num_attributes + 1)
+
+    train_dataloader = DataLoader(
+        train_dataset, collate_fn=AnimalsDataset.custom_collate_fn,
+        batch_size=4, shuffle=True)
+
+    for image, label, batch_attribute_labels, padding_idx in train_dataloader:
+        for image_attribute_labels in batch_attribute_labels:
+            print(image_attribute_labels[:10])
+            print(torch.LongTensor(list(filter(
+                lambda al: al not in image_attribute_labels,
+                all_attribute_labels))))
+            print('---')
+
+
 
 

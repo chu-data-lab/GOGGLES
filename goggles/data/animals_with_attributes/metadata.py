@@ -122,8 +122,6 @@ def load_animals_metadata(animal_data_dir):
                 if entered == False:
                     species_by_id[species_id].add_attribute(attributes_by_id[attribute_id])
             entered = True
-            if id_ == 10:
-                break
 
     total_images = id_
     train_num = 0.7 * total_images
