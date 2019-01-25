@@ -1,8 +1,5 @@
 import os as _os
 
-from goggles.data.awa2.dataset import AwA2Dataset as _AwA2Dataset
-from goggles.data.cub.dataset import CUBDataset as _CUBDataset
-
 
 BASE_DIR = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
 
@@ -17,13 +14,3 @@ IMAGES_DIR_NAME = 'images'
 PROTOTYPES_DIR_NAME = 'prototypes'
 
 MODEL_FILE_NAME = 'model.pt'
-
-DATASET_MAP = {
-    'awa2': _AwA2Dataset,
-    'cub': _CUBDataset
-}
-
-DATA_DIR_MAP = {
-    'awa2': AWA2_DATA_DIR,
-    'cub': CUB_DATA_DIR
-}

@@ -1,8 +1,11 @@
 import json
+import os
 import torch
+
 from types import SimpleNamespace
 from goggles.constants import *
 from goggles.models.semantic_ae import SemanticAutoencoder
+from goggles.opts import DATASET_MAP, DATA_DIR_MAP
 
 
 def load_context_from_run_id(run_id):

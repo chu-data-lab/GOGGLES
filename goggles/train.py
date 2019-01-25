@@ -16,6 +16,7 @@ from constants import *
 sys.path.append(BASE_DIR)
 from goggles.loss import CustomLoss2
 from goggles.models.semantic_ae import SemanticAutoencoder
+from goggles.opts import DATASET_MAP, DATA_DIR_MAP
 from goggles.utils.vis import \
     get_image_from_tensor, save_prototype_patch_visualization
 
