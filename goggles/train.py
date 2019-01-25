@@ -3,6 +3,7 @@ try:
 except ImportError:
     ifilter = filter
 import sys
+import os
 
 from sacred import Experiment
 from sacred.observers import FileStorageObserver
