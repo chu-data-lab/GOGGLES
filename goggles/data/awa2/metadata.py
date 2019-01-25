@@ -77,13 +77,20 @@ class Species(_NamedClass):
 def load_awa2_metadata(awa2_data_dir, train_split=0.8):
     awa2_data_dir = os.path.join(awa2_data_dir, 'Animals_with_Attributes2')
 
+    non_visual_attribute_ids = {34, 35, 36, 37, 38, 39, 40,
+                                41, 42, 43, 47, 48, 49, 50,
+                                51, 52, 53, 54, 55, 56, 57,
+                                58, 59, 60, 61, 62, 63, 64,
+                                79, 80, 81, 82, 83, 84, 85}
+
     attributes_by_id = dict()
     attributes_file = os.path.join(awa2_data_dir, 'predicates.txt')
     with open(attributes_file, 'r') as f:
         for l in f.readlines():
             id_, name = l.strip().split()
             id_ = int(id_)
-            attributes_by_id[id_] = Attribute(id_, name)
+            if id_ not in non_visual_attribute_ids:
+                attributes_by_id[id_] = Attribute(id_, name)
 
     species_by_id = dict()
     species_file = os.path.join(awa2_data_dir, 'classes.txt')
@@ -95,16 +102,13 @@ def load_awa2_metadata(awa2_data_dir, train_split=0.8):
 
     predicate_matrix = \
         np.loadtxt(os.path.join(awa2_data_dir, 'predicate-matrix-binary.txt'))
-    num_species = len(species_by_id)
-    num_predicates = len(attributes_by_id)
-    for i in range(num_species):
-        species_id = i + 1
+    for species_id in species_by_id.keys():
         species = species_by_id[species_id]
 
-        for j in range(num_predicates):
-            attribute_id = j + 1
+        for attribute_id in attributes_by_id.keys():
             attribute = attributes_by_id[attribute_id]
 
+            i, j = species_id - 1, attribute_id - 1
             if predicate_matrix[i][j] == 1:
                 species.add_attribute(attribute)
 
