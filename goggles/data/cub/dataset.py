@@ -109,8 +109,8 @@ class CUBDataset(Dataset):
 
         transform_to_tensor = transforms.ToTensor()
         transform_random_flip = transforms.RandomHorizontalFlip()
-        transform_normalize = transforms.Normalize((0.5, 0.5, 0.5),
-                                                   (0.5, 0.5, 0.5))
+        transform_normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                   std=[0.229, 0.224, 0.225])
 
         random_transformation = transforms.Compose([
             transform_random_flip, transform_resize,

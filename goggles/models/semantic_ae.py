@@ -133,6 +133,7 @@ class SemanticAutoencoder(nn.Module):
             x = image.view((1,) + image.size())
             x = self._make_cuda(torch.autograd.Variable(x))
             z, z_patches, reconstructed_x = self.forward(x)
+            self.zero_grad()
 
             prototype_labels = attribute_labels[:num_nonzero_attributes]
 
@@ -164,6 +165,7 @@ class SemanticAutoencoder(nn.Module):
             nearest_patch = candidate_patches[nearest_patch_idx]
             _, nearest_patch_id = candidate_patch_idxs_dict[k][nearest_patch_idx]  # (image_idx, patch_idx)
             nearest_patches_for_prototypes[k] = (nearest_patch_id, nearest_patch)
+            self.zero_grad()
 
         return nearest_patches_for_prototypes
 
