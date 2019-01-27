@@ -1,3 +1,4 @@
+from collections import Counter, defaultdict
 import os
 
 from joblib import Memory
@@ -84,6 +85,22 @@ class AwA2Dataset(Dataset):
     def get_attribute_label(self, attribute):
         return self.attributes.index(attribute) + 1  # attribute labels are 1-indexed
 
+    def make_balanced_dataset(self):
+        balanced_image_data = list()
+
+        counts = Counter([d.species.name for d in self._image_data])
+        min_count = min(counts.values())
+
+        new_counts = defaultdict(int)
+        for datum in self._image_data:
+            species_id = datum.species.id
+            if new_counts[species_id] < min_count:
+                balanced_image_data.append(datum)
+                new_counts[species_id] += 1
+
+        self._image_data = list(
+            sorted(balanced_image_data, key=lambda d: d.id))
+
     @staticmethod
     def custom_collate_fn(batch):
         batch = zip(*batch)  # transpose
@@ -109,8 +126,8 @@ class AwA2Dataset(Dataset):
 
         transform_to_tensor = transforms.ToTensor()
         transform_random_flip = transforms.RandomHorizontalFlip()
-        transform_normalize = transforms.Normalize((0.5, 0.5, 0.5),
-                                                   (0.5, 0.5, 0.5))
+        transform_normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                   std=[0.229, 0.224, 0.225])
 
         random_transformation = transforms.Compose([
             transform_random_flip, transform_resize,
@@ -138,27 +155,27 @@ class AwA2Dataset(Dataset):
 
 
 if __name__ == '__main__':
-    from torch.utils.data import DataLoader
+    # from torch.utils.data import DataLoader
 
     data_dir = '/media/seagate/rtorrent/AwA2/Animals_with_Attributes2'
 
     train_dataset, _, _ = AwA2Dataset.load_dataset_splits(
-        data_dir, 128, filter_species_ids=[14, 20])
+        data_dir, 224, filter_species_ids=[3, 27])
 
-    num_attributes = train_dataset.num_attributes
-    all_attribute_labels = range(1, num_attributes + 1)
+    print(Counter([d.species.name for d in train_dataset._image_data]))
 
-    train_dataloader = DataLoader(
-        train_dataset, collate_fn=AwA2Dataset.custom_collate_fn,
-        batch_size=4, shuffle=True)
 
-    for image, label, batch_attribute_labels, padding_idx in train_dataloader:
-        for image_attribute_labels in batch_attribute_labels:
-            print(image_attribute_labels[:10])
-            print(torch.LongTensor(list(filter(
-                lambda al: al not in image_attribute_labels,
-                all_attribute_labels))))
-            print('---')
+    # train_dataloader = DataLoader(
+    #     train_dataset, collate_fn=AwA2Dataset.custom_collate_fn,
+    #     batch_size=4, shuffle=True)
+    #
+    # for image, label, batch_attribute_labels, padding_idx in train_dataloader:
+    #     for image_attribute_labels in batch_attribute_labels:
+    #         print(image_attribute_labels[:10])
+    #         print(torch.LongTensor(list(filter(
+    #             lambda al: al not in image_attribute_labels,
+    #             all_attribute_labels))))
+    #         print('---')
 
 
 
