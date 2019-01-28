@@ -115,7 +115,8 @@ def load_cub_metadata(cub_data_dir):
             species_name = path.split('/')[0]
             species_id = int(species_name.split('.')[0])
             species = species_by_id[species_id]
-            datum_by_id[id_] = Datum(id_, path, species)
+            datum_path = os.path.join('CUB_200_2011', 'images', path)
+            datum_by_id[id_] = Datum(id_, datum_path, species)
 
     split_file = os.path.join(cub_data_dir, 'CUB_200_2011', 'train_test_split.txt')
     with open(split_file, 'r') as f:

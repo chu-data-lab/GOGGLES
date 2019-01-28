@@ -119,7 +119,9 @@ def load_awa2_metadata(awa2_data_dir, train_split=0.8):
         for image_path in glob.glob(os.path.join(
                 awa2_data_dir, 'JPEGImages', species.name, '*.jpg')):
             datum_id = os.path.basename(image_path)
-            datum_path = os.path.join(species.name, datum_id)
+            datum_path = os.path.join(
+                awa2_data_dir, 'JPEGImages',
+                species.name, datum_id)
             datum = Datum(datum_id, datum_path, species)
 
             for attribute in species.attributes:
