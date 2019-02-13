@@ -14,6 +14,7 @@ flags.DEFINE_string('dataset', None,
 flags.mark_flag_as_required('class_ids')
 flags.mark_flag_as_required('image_id')
 
+import os
 from collections import Counter
 
 import matplotlib.pyplot as plt
@@ -48,17 +49,16 @@ def get_embedding_for_patch_id(patch_id, dataset, model, patches, layer_idx):
 
     return e
 
-
-def get_proposed_patch_ids_for_image(image_idx, num_proposals, dataset, model, patches):
+def get_proposed_patch_ids_for_image(image_idx, num_proposals, dataset, model, patches, layer_idx):
     x = dataset[image_idx][0]
     x = x.view((1,) + x.size())
     x = torch.autograd.Variable(x, requires_grad=False)
 
-    z = model.forward(x, layer_idx=LAYER_IDX)
+    z = model.forward(x, layer_idx=layer_idx)
     z_np = z[0].numpy()
-
+    
     best_channel_indices = np.max(z_np, axis=(1, 2)).argsort()[::-1][:num_proposals]
-
+    
     proposed_patch_ids = set()
     for i in range(num_proposals):
         ch = z_np[best_channel_indices[i]]
@@ -69,36 +69,35 @@ def get_proposed_patch_ids_for_image(image_idx, num_proposals, dataset, model, p
     return list(sorted(proposed_patch_ids))
 
 
-def get_initial_property_matrix(image_list, test_dataset, ctx, model, patches):
+def get_initial_property_matrix(patch_image_id, test_dataset, ctx, model, patches):
     dists_mat = list()
-    for patch_image_id in image_list:
 
-        num_best_channels = 5
+    num_best_channels = 5
 
-        for i, patch_id in enumerate(get_proposed_patch_ids_for_image(patch_image_id, num_best_channels, *ctx)):
+    for i, patch_id in enumerate(get_proposed_patch_ids_for_image(patch_image_id, num_best_channels, *ctx)):
 
-            image_idx = patch_id[0]
-            patch_idx = patch_id[1]
-            INIT_EMB = get_embedding_for_patch_id((image_idx, patch_idx,), *ctx)
-            long_list = list()
+        image_idx = patch_id[0]
+        patch_idx = patch_id[1]
+        INIT_EMB = get_embedding_for_patch_id((image_idx, patch_idx,), *ctx)
+        long_list = list()
 
-            for image_id_ in range(len(test_dataset)):
-                x_ = test_dataset[image_id_][0]
-                x_ = x_.view((1,) + x_.size())
-                x_ = torch.autograd.Variable(x_, requires_grad=False)
+        for image_id_ in range(len(test_dataset)):
+            x_ = test_dataset[image_id_][0]
+            x_ = x_.view((1,) + x_.size())
+            x_ = torch.autograd.Variable(x_, requires_grad=False)
 
-                z_ = model.forward(x_, layer_idx=LAYER_IDX)
+            z_ = model.forward(x_, layer_idx=LAYER_IDX)
 
-                nearest_patch_idx, nearest_patch = min(
-                    enumerate(patches),
-                    key=lambda (i, patch): DIST_FN(INIT_EMB, patch.forward(z_)[0].numpy()))
+            nearest_patch_idx, nearest_patch = min(
+                enumerate(patches),
+                key=lambda (i, patch): DIST_FN(INIT_EMB, patch.forward(z_)[0].numpy()))
 
-                sim = DIST_FN(INIT_EMB, nearest_patch.forward(z_)[0].numpy())
+            sim = DIST_FN(INIT_EMB, nearest_patch.forward(z_)[0].numpy())
 
-                long_list.append(sim)
+            long_list.append(sim)
 
 
-            dists_mat.append(long_list)
+        dists_mat.append(long_list)
 
     return np.array(dists_mat).T
 
@@ -109,7 +108,7 @@ def main(argv):
     del argv # unused
 
     filter_class_ids = list(map(int, FLAGS.class_ids))
-    image_id = FLAGS.image_id
+    patch_image_id = FLAGS.image_id
     dataset = FLAGS.dataset
 
     Dataset = DATASET_MAP[dataset]
@@ -131,9 +130,10 @@ def main(argv):
 
     ctx = (test_dataset, model, patches, LAYER_IDX)
 
-    np_property_matrix = get_initial_property_matrix(image_id, test_dataset, ctx, model, patches)
-
-    plt.imshow(np_property_matrix)
+    np_property_matrix = get_initial_property_matrix(patch_image_id, test_dataset, ctx, model, patches)
+    outfile = os.path.join(SCRATCH_DIR, 'distance_matrices', 'distance_matrices-' + str(patch_image_id) \
+                           + 'species-' + str(filter_class_ids))
+    np.save(outfile, np_property_matrix)
 
 
 if __name__ == '__main__':
