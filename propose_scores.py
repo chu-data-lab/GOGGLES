@@ -48,7 +48,7 @@ def _get_embedding_for_patch_id(patch_id, context):
     x = _make_cuda(torch.autograd.Variable(x, requires_grad=False))
 
     z = context.model.forward(x, layer_idx=context.layer_idx)
-    e = context.patches[patch_idx].forward(z).numpy()[0]
+    e = context.patches[patch_idx].forward(z).cpu().numpy()[0]
 
     return e
 
@@ -59,7 +59,7 @@ def _get_proposed_patch_ids_for_image(image_idx, num_max_proposals, context):
     x = _make_cuda(torch.autograd.Variable(x, requires_grad=False))
 
     z = context.model.forward(x, layer_idx=context.layer_idx)
-    z_np = z[0].numpy()
+    z_np = z[0].cpu().numpy()
     
     best_channel_indices = \
         np.max(z_np, axis=(1, 2)).argsort()[::-1][:num_max_proposals]
@@ -75,12 +75,12 @@ def _get_proposed_patch_ids_for_image(image_idx, num_max_proposals, context):
 
 
 def _get_score_matrix_for_image(image_idx, num_max_proposals, context):
-    dist_fn = spatial.cosine
+    dist_fn = spatial.distance.cosine
     score_matrix = list()
 
     proposed_patch_ids = _get_proposed_patch_ids_for_image(
         image_idx, num_max_proposals, context)
-    for i, patch_id in proposed_patch_ids:
+    for patch_id in tqdm(proposed_patch_ids, leave=True):
         init_emb = _get_embedding_for_patch_id(patch_id, context)
         proposal_scores = list()
 
@@ -92,9 +92,9 @@ def _get_score_matrix_for_image(image_idx, num_max_proposals, context):
             z = context.model.forward(x, layer_idx=context.layer_idx)
 
             nearest_patch = min(context.patches, key=lambda patch:
-                dist_fn(init_emb, patch.forward(z)[0].numpy()))
+                dist_fn(init_emb, patch.forward(z)[0].cpu().numpy()))
 
-            sim = dist_fn(init_emb, nearest_patch.forward(z)[0].numpy())
+            sim = dist_fn(init_emb, nearest_patch.forward(z)[0].cpu().numpy())
             proposal_scores.append(sim)
 
         score_matrix.append(proposal_scores)
@@ -106,7 +106,8 @@ def main(argv):
     del argv  # unused
 
     filter_class_ids = list(map(int, FLAGS.class_ids))
-    logging.info('calculating scores for classes %s' % filter_class_ids)
+    logging.info('calculating scores for classes %s'
+                 % ', '.join(map(str, filter_class_ids)))
 
     dataset_class = DATASET_MAP[FLAGS.dataset]
     data_dir = DATA_DIR_MAP[FLAGS.dataset]
@@ -117,9 +118,10 @@ def main(argv):
         data_dir, input_image_size, filter_class_ids)
 
     train_dataset.merge_image_data(test_dataset)
+    logging.info('loaded %d images' % len(train_dataset))
 
     logging.info('loading model...')
-    model = Vgg16()
+    model = _make_cuda(Vgg16())
     patch_size = (1, 1,)
     encoded_output_dim = model.get_layer_output_dim(FLAGS.layer_idx)
     patches = Patch.from_spec(encoded_output_dim, patch_size)
@@ -129,6 +131,16 @@ def main(argv):
         patches=patches,
         dataset=train_dataset,
         layer_idx=FLAGS.layer_idx)
+
+    out_filename = 'label-%s' % (FLAGS.filter_class_label
+                                 if FLAGS.filter_class_label else 'all')
+    out_dirpath = os.path.join(SCRATCH_DIR, 'scores', FLAGS.dataset,
+                               f'vgg16-layer{FLAGS.layer_idx}',
+                               '_'.join(map(str, filter_class_ids)))
+    out_filepath = os.path.join(out_dirpath, out_filename)
+
+    os.makedirs(out_dirpath, exist_ok=True)
+    logging.info('saving output to %s' % out_filepath)
 
     all_scores_matrix = None
     for image_idx in trange(len(context.dataset)):
@@ -144,18 +156,8 @@ def main(argv):
                     (all_scores_matrix, _get_score_matrix_for_image(
                         image_idx, FLAGS.num_proposals, context)), axis=1)
 
-    out_filename = 'label-%s' % (FLAGS.filter_class_label
-                                 if FLAGS.filter_class_label else 'all')
-    out_dirpath = os.path.join(SCRATCH_DIR, 'scores', FLAGS.dataset,
-                                f'vgg16-layer{FLAGS.layer_idx}',
-                                '_'.join(map(str, filter_class_ids)))
-    out_filepath = os.path.join(out_dirpath, out_filename)
-
-    os.makedirs(out_dirpath, exist_ok=True)
-    np.save(out_filepath, all_scores_matrix)
-    logging.info('saved output in %s' % out_filepath)
+            np.save(out_filepath, all_scores_matrix)
 
 
 if __name__ == '__main__':
     app.run(main)
-
