@@ -132,8 +132,9 @@ def main(argv):
         dataset=train_dataset,
         layer_idx=FLAGS.layer_idx)
 
-    out_filename = 'label-%s' % (FLAGS.filter_class_label
-                                 if FLAGS.filter_class_label else 'all')
+    out_filename = 'label-%s.npy' % (FLAGS.filter_class_label
+                                     if FLAGS.filter_class_label is not None
+                                     else 'all')
     out_dirpath = os.path.join(SCRATCH_DIR, 'scores', FLAGS.dataset,
                                f'vgg16-layer{FLAGS.layer_idx}',
                                '_'.join(map(str, filter_class_ids)))
@@ -145,7 +146,7 @@ def main(argv):
     all_scores_matrix = None
     for image_idx in trange(len(context.dataset)):
         image_label = context.dataset[image_idx][1]
-        if (not FLAGS.filter_class_label
+        if (FLAGS.filter_class_label is None
                 or image_label == FLAGS.filter_class_label):
 
             if all_scores_matrix is None:
