@@ -1,66 +1,71 @@
+import os
+from types import SimpleNamespace
+
 from absl import app, flags, logging
+import numpy as np
+from scipy import spatial
+import torch
+from tqdm import tqdm, trange
+
+from goggles.constants import *
+from goggles.models.patch import Patch
+from goggles.models.vgg import Vgg16
+from goggles.opts import DATASET_MAP, DATA_DIR_MAP
 
 
 FLAGS = flags.FLAGS
 
-flags.DEFINE_list('class_ids', None,
-                  'Comma separated class IDs')
-flags.DEFINE_integer('image_id', None,
-                     'Image ID')
+flags.DEFINE_integer(
+    'layer_idx', 30,
+    'Layer index from the VGG-16 model '
+    'to be used for extracting proposals')
+flags.DEFINE_enum(
+    'dataset', None, ['awa2', 'cub'],
+    'Dataset for analysis')
+flags.DEFINE_list(
+    'class_ids', None,
+    'Comma separated class IDs')
+flags.DEFINE_integer(
+    'filter_class_label', None,
+    'The class label for which '
+    'the scores are to be computed')
+flags.DEFINE_integer(
+    'num_proposals', 5,
+    'Number of proposals to be '
+    'extracted for each image')
 
-flags.DEFINE_string('dataset', None,
-                  'Dataset name')
-
+flags.mark_flag_as_required('dataset')
 flags.mark_flag_as_required('class_ids')
-flags.mark_flag_as_required('image_id')
 
-import os
-from collections import Counter
-
-import matplotlib.pyplot as plt
-import numpy as np
-from scipy import spatial
-import torch
-from torchvision import transforms
-
-from goggles.constants import *
-from goggles.data.cub.dataset import CUBDataset
-from goggles.data.awa2.dataset import AwA2Dataset
-from goggles.models.patch import Patch
-from goggles.models.vgg import Vgg16
-from goggles.opts import DATASET_MAP, DATA_DIR_MAP
-from goggles.utils.vis import get_image_from_tensor, get_image_with_patch_outline
-
-LAYER_IDX = 30
-DIST_FN = spatial.distance.cosine
-NUM_SKIP_PATCHES = 40
+_make_cuda = lambda x: x.cuda() if torch.cuda.is_available() else x
 
 
-def get_embedding_for_patch_id(patch_id, dataset, model, patches, layer_idx):
+def _get_embedding_for_patch_id(patch_id, context):
     image_idx, patch_idx = patch_id
 
-    x = dataset[image_idx][0]
+    x = context.dataset[image_idx][0]
     x = x.view((1,) + x.size())
-    x = torch.autograd.Variable(x, requires_grad=False)
+    x = _make_cuda(torch.autograd.Variable(x, requires_grad=False))
 
-    z = model.forward(x, layer_idx=layer_idx)
-
-    e = patches[patch_idx].forward(z).numpy()[0]
+    z = context.model.forward(x, layer_idx=context.layer_idx)
+    e = context.patches[patch_idx].forward(z).numpy()[0]
 
     return e
 
-def get_proposed_patch_ids_for_image(image_idx, num_proposals, dataset, model, patches, layer_idx):
-    x = dataset[image_idx][0]
-    x = x.view((1,) + x.size())
-    x = torch.autograd.Variable(x, requires_grad=False)
 
-    z = model.forward(x, layer_idx=layer_idx)
+def _get_proposed_patch_ids_for_image(image_idx, num_max_proposals, context):
+    x = context.dataset[image_idx][0]
+    x = x.view((1,) + x.size())
+    x = _make_cuda(torch.autograd.Variable(x, requires_grad=False))
+
+    z = context.model.forward(x, layer_idx=context.layer_idx)
     z_np = z[0].numpy()
     
-    best_channel_indices = np.max(z_np, axis=(1, 2)).argsort()[::-1][:num_proposals]
+    best_channel_indices = \
+        np.max(z_np, axis=(1, 2)).argsort()[::-1][:num_max_proposals]
     
     proposed_patch_ids = set()
-    for i in range(num_proposals):
+    for i in range(num_max_proposals):
         ch = z_np[best_channel_indices[i]]
 
         most_activated_patch_idx = np.argmax(ch)
@@ -69,71 +74,86 @@ def get_proposed_patch_ids_for_image(image_idx, num_proposals, dataset, model, p
     return list(sorted(proposed_patch_ids))
 
 
-def get_initial_property_matrix(patch_image_id, test_dataset, ctx, model, patches):
-    dists_mat = list()
+def _get_score_matrix_for_image(image_idx, num_max_proposals, context):
+    dist_fn = spatial.cosine
+    score_matrix = list()
 
-    num_best_channels = 5
+    proposed_patch_ids = _get_proposed_patch_ids_for_image(
+        image_idx, num_max_proposals, context)
+    for i, patch_id in proposed_patch_ids:
+        init_emb = _get_embedding_for_patch_id(patch_id, context)
+        proposal_scores = list()
 
-    for i, patch_id in enumerate(get_proposed_patch_ids_for_image(patch_image_id, num_best_channels, *ctx)):
+        for image_idx_ in trange(len(context.dataset), leave=True):
+            x = context.dataset[image_idx_][0]
+            x = x.view((1,) + x.size())
+            x = _make_cuda(torch.autograd.Variable(x, requires_grad=False))
 
-        image_idx = patch_id[0]
-        patch_idx = patch_id[1]
-        INIT_EMB = get_embedding_for_patch_id((image_idx, patch_idx,), *ctx)
-        long_list = list()
+            z = context.model.forward(x, layer_idx=context.layer_idx)
 
-        for image_id_ in range(len(test_dataset)):
-            x_ = test_dataset[image_id_][0]
-            x_ = x_.view((1,) + x_.size())
-            x_ = torch.autograd.Variable(x_, requires_grad=False)
+            nearest_patch = min(context.patches, key=lambda patch:
+                dist_fn(init_emb, patch.forward(z)[0].numpy()))
 
-            z_ = model.forward(x_, layer_idx=LAYER_IDX)
+            sim = dist_fn(init_emb, nearest_patch.forward(z)[0].numpy())
+            proposal_scores.append(sim)
 
-            nearest_patch_idx, nearest_patch = min(
-                enumerate(patches),
-                key=lambda (i, patch): DIST_FN(INIT_EMB, patch.forward(z_)[0].numpy()))
+        score_matrix.append(proposal_scores)
 
-            sim = DIST_FN(INIT_EMB, nearest_patch.forward(z_)[0].numpy())
+    return np.array(score_matrix).T
 
-            long_list.append(sim)
-
-
-        dists_mat.append(long_list)
-
-    return np.array(dists_mat).T
-
-def softmax(x):
-    return np.exp(x) / np.sum(np.exp(x))
 
 def main(argv):
-    del argv # unused
+    del argv  # unused
 
     filter_class_ids = list(map(int, FLAGS.class_ids))
-    patch_image_id = FLAGS.image_id
-    dataset = FLAGS.dataset
+    logging.info('calculating scores for classes %s' % filter_class_ids)
 
-    Dataset = DATASET_MAP[dataset]
-    data_dir = DATA_DIR_MAP[dataset]
+    dataset_class = DATASET_MAP[FLAGS.dataset]
+    data_dir = DATA_DIR_MAP[FLAGS.dataset]
 
-    # logging.info((filter_class_ids, image_id, dataset))
-
-    model = Vgg16()
+    logging.info('loading data...')
     input_image_size = 224
-    _, train_dataset, test_dataset = Dataset.load_dataset_splits(
+    _, train_dataset, test_dataset = dataset_class.load_dataset_splits(
         data_dir, input_image_size, filter_class_ids)
-    train_dataset.make_balanced_dataset()
-    test_dataset.make_balanced_dataset()
 
+    train_dataset.merge_image_data(test_dataset)
 
+    logging.info('loading model...')
+    model = Vgg16()
     patch_size = (1, 1,)
-    encoded_output_dim = model.get_layer_output_dim(LAYER_IDX)
+    encoded_output_dim = model.get_layer_output_dim(FLAGS.layer_idx)
     patches = Patch.from_spec(encoded_output_dim, patch_size)
 
-    ctx = (test_dataset, model, patches, LAYER_IDX)
+    context = SimpleNamespace(
+        model=model,
+        patches=patches,
+        dataset=train_dataset,
+        layer_idx=FLAGS.layer_idx)
 
-    np_property_matrix = get_initial_property_matrix(patch_image_id, test_dataset, ctx, model, patches)
-    outfile = os.path.join(SCRATCH_DIR, 'distance_matrices', 'distance_matrices-' + str(patch_image_id) \
-                           + 'species-' + str(filter_class_ids))
-    np.save(outfile, np_property_matrix)
+    all_scores_matrix = None
+    for image_idx in trange(len(context.dataset)):
+        image_label = context.dataset[image_idx][1]
+        if (not FLAGS.filter_class_label
+                or image_label == FLAGS.filter_class_label):
+
+            if all_scores_matrix is None:
+                all_scores_matrix = _get_score_matrix_for_image(
+                    image_idx, FLAGS.num_proposals, context)
+            else:
+                all_scores_matrix = np.concatenate(
+                    (all_scores_matrix, _get_score_matrix_for_image(
+                        image_idx, FLAGS.num_proposals, context)), axis=1)
+
+    out_filename = 'label-%s' % (FLAGS.filter_class_label
+                                 if FLAGS.filter_class_label else 'all')
+    out_dirpath = os.path.join(SCRATCH_DIR, 'scores', FLAGS.dataset,
+                                f'vgg16-layer{FLAGS.layer_idx}',
+                                '_'.join(map(str, filter_class_ids)))
+    out_filepath = os.path.join(out_dirpath, out_filename)
+
+    os.makedirs(out_dirpath, exist_ok=True)
+    np.save(out_filepath, all_scores_matrix)
+    logging.info('saved output in %s' % out_filepath)
 
 
 if __name__ == '__main__':

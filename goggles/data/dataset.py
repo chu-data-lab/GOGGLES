@@ -156,3 +156,6 @@ class GogglesDataset(Dataset):
         return train_dataset_with_random_transformation, \
                train_dataset_with_non_random_transformation, \
                test_dataset
+
+    def merge_image_data(self, another_dataset):
+        self._image_data += another_dataset._image_data
