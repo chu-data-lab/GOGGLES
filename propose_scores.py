@@ -3,8 +3,8 @@ from types import SimpleNamespace
 
 from absl import app, flags, logging
 import numpy as np
-from scipy import spatial
 import torch
+import torch.nn.functional as F
 from tqdm import tqdm, trange
 
 from goggles.constants import *
@@ -40,66 +40,87 @@ flags.mark_flag_as_required('class_ids')
 _make_cuda = lambda x: x.cuda() if torch.cuda.is_available() else x
 
 
-def _get_embedding_for_patch_id(patch_id, context):
-    image_idx, patch_idx = patch_id
+class Context:
+    def __init__(self, model, dataset, layer_idx):
+        self.model = model
+        self.dataset = dataset
 
-    x = context.dataset[image_idx][0]
-    x = x.view((1,) + x.size())
-    x = _make_cuda(torch.autograd.Variable(x, requires_grad=False))
+        self._layer_idx = layer_idx
+        self._model_out_dict = dict()
 
-    z = context.model.forward(x, layer_idx=context.layer_idx)
-    e = context.patches[patch_idx].forward(z).cpu().numpy()[0]
-
-    return e
-
-
-def _get_proposed_patch_ids_for_image(image_idx, num_max_proposals, context):
-    x = context.dataset[image_idx][0]
-    x = x.view((1,) + x.size())
-    x = _make_cuda(torch.autograd.Variable(x, requires_grad=False))
-
-    z = context.model.forward(x, layer_idx=context.layer_idx)
-    z_np = z[0].cpu().numpy()
-    
-    best_channel_indices = \
-        np.max(z_np, axis=(1, 2)).argsort()[::-1][:num_max_proposals]
-    
-    proposed_patch_ids = set()
-    for i in range(num_max_proposals):
-        ch = z_np[best_channel_indices[i]]
-
-        most_activated_patch_idx = np.argmax(ch)
-        proposed_patch_ids.add((image_idx, most_activated_patch_idx,))
-
-    return list(sorted(proposed_patch_ids))
-
-
-def _get_score_matrix_for_image(image_idx, num_max_proposals, context):
-    dist_fn = spatial.distance.cosine
-    score_matrix = list()
-
-    proposed_patch_ids = _get_proposed_patch_ids_for_image(
-        image_idx, num_max_proposals, context)
-    for patch_id in tqdm(proposed_patch_ids, leave=True):
-        init_emb = _get_embedding_for_patch_id(patch_id, context)
-        proposal_scores = list()
-
-        for image_idx_ in trange(len(context.dataset), leave=True):
-            x = context.dataset[image_idx_][0]
+    def get_model_output(self, image_idx):
+        if image_idx not in self._model_out_dict:
+            x = self.dataset[image_idx][0]
             x = x.view((1,) + x.size())
             x = _make_cuda(torch.autograd.Variable(x, requires_grad=False))
 
-            z = context.model.forward(x, layer_idx=context.layer_idx)
+            self._model_out_dict[image_idx] = \
+                self.model.forward(x, layer_idx=self._layer_idx)[0]
 
-            nearest_patch = min(context.patches, key=lambda patch:
-                dist_fn(init_emb, patch.forward(z)[0].cpu().numpy()))
+        z = self._model_out_dict[image_idx]
+        return z
 
-            sim = dist_fn(init_emb, nearest_patch.forward(z)[0].cpu().numpy())
-            proposal_scores.append(sim)
 
-        score_matrix.append(proposal_scores)
+def _get_patches(z, patch_idxs, normalize=False):
+    """
+    z: CxHxW
+    patch_idxs: K
+    """
 
-    return np.array(score_matrix).T
+    c = z.size(0)
+
+    patches = z.view(c, -1).t()[patch_idxs]
+    if normalize:
+        patches = F.normalize(patches, dim=1)
+
+    return patches
+
+
+def _get_most_activated_channels(z, num_channels=5):
+    """
+    z: CxHxW
+    """
+
+    per_channel_max_activations, _ = z.max(1)[0].max(1)
+
+    most_activated_channels = \
+        torch.topk(per_channel_max_activations, num_channels)[1]
+
+    return most_activated_channels
+
+
+def _get_most_activated_patch_idxs_from_channels(z, channel_idxs):
+    """
+    z: CxHxW
+    channel_idxs: K
+    """
+
+    k = channel_idxs.shape[0]
+
+    most_activated_patch_idxs = \
+        z[channel_idxs].view(k, -1).max(1)[1]
+
+    return torch.unique(most_activated_patch_idxs)
+
+
+def _get_score_matrix_for_image(image_idx, num_max_proposals, context):
+    score_matrix = list()
+
+    z = context.get_model_output(image_idx)
+    num_patches = z.size(1) * z.size(2)
+    ch = _get_most_activated_channels(z, num_channels=num_max_proposals)
+    pids = _get_most_activated_patch_idxs_from_channels(z, ch)
+    proto_patches = _get_patches(z, pids, normalize=True)
+
+    for image_idx_ in trange(len(context.dataset), leave=True):
+        z_ = context.get_model_output(image_idx_)
+        img_patches = _get_patches(z_, range(num_patches), normalize=True)
+        scores = 1 - torch.matmul(img_patches, proto_patches.t()).max(0)[0]
+        scores = scores.cpu().numpy()
+
+        score_matrix.append(scores)
+
+    return np.array(score_matrix)
 
 
 def main(argv):
@@ -114,22 +135,17 @@ def main(argv):
 
     logging.info('loading data...')
     input_image_size = 224
-    _, train_dataset, test_dataset = dataset_class.load_dataset_splits(
+    dataset = dataset_class.load_all_data(
         data_dir, input_image_size, filter_class_ids)
 
-    train_dataset.merge_image_data(test_dataset)
-    logging.info('loaded %d images' % len(train_dataset))
+    logging.info('loaded %d images' % len(dataset))
 
     logging.info('loading model...')
     model = _make_cuda(Vgg16())
-    patch_size = (1, 1,)
-    encoded_output_dim = model.get_layer_output_dim(FLAGS.layer_idx)
-    patches = Patch.from_spec(encoded_output_dim, patch_size)
 
-    context = SimpleNamespace(
+    context = Context(
         model=model,
-        patches=patches,
-        dataset=train_dataset,
+        dataset=dataset,
         layer_idx=FLAGS.layer_idx)
 
     out_filename = 'label-%s.npy' % (FLAGS.filter_class_label

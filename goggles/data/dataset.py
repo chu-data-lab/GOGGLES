@@ -34,8 +34,12 @@ class GogglesDataset(Dataset):
             filter_species_ids = set(filter_species_ids)
             required_species = list(filter(lambda s: s.id in filter_species_ids, required_species))
             self._image_data = list(filter(lambda d: d.species.id in filter_species_ids, self._image_data))
-        self._image_data = list(filter(lambda d: d.is_for_training == is_training, self._image_data))
         self._species_labels = {species: label for label, species in enumerate(required_species)}
+
+        if is_training is not None:
+            self._image_data = list(filter(
+                lambda d: d.is_for_training == is_training,
+                self._image_data))
 
         if required_attributes is not None:
             assert type(required_attributes) is list
@@ -157,5 +161,25 @@ class GogglesDataset(Dataset):
                train_dataset_with_non_random_transformation, \
                test_dataset
 
-    def merge_image_data(self, another_dataset):
-        self._image_data += another_dataset._image_data
+    @classmethod
+    def load_all_data(cls, root_dir, input_image_size, filter_species_ids):
+        try:
+            transform_resize = transforms.Resize(
+                (input_image_size, input_image_size))
+        except AttributeError:
+            transform_resize = transforms.Scale(
+                (input_image_size, input_image_size))
+
+        transform_to_tensor = transforms.ToTensor()
+        transform_normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                                   std=[0.229, 0.224, 0.225])
+
+        transformation = transforms.Compose([
+            transform_resize, transform_to_tensor, transform_normalize])
+
+        dataset = cls(
+            root_dir, filter_species_ids,
+            transform=transformation,
+            is_training=None)
+
+        return dataset
