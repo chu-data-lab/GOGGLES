@@ -164,13 +164,13 @@ def main(argv):
     for image_idx in trange(len(context.dataset)):
         if all_scores_matrix is None:
             scores, cols = _get_score_matrix_for_image(
-                image_idx, FLAGS.num_proposals, context)
+                image_idx, FLAGS.num_max_proposals, context)
 
             all_scores_matrix = scores
             all_column_ids += cols
         else:
             scores, cols = _get_score_matrix_for_image(
-                image_idx, FLAGS.num_proposals, context)
+                image_idx, FLAGS.num_max_proposals, context)
 
             all_scores_matrix = np.concatenate(
                 (all_scores_matrix, scores), axis=1)
