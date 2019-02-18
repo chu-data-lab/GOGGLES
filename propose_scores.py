@@ -1,14 +1,12 @@
 import os
-from types import SimpleNamespace
 
 from absl import app, flags, logging
 import numpy as np
 import torch
 import torch.nn.functional as F
-from tqdm import tqdm, trange
+from tqdm import trange
 
 from goggles.constants import *
-from goggles.models.patch import Patch
 from goggles.models.vgg import Vgg16
 from goggles.opts import DATASET_MAP, DATA_DIR_MAP
 
@@ -26,13 +24,9 @@ flags.DEFINE_list(
     'class_ids', None,
     'Comma separated class IDs')
 flags.DEFINE_integer(
-    'filter_class_label', None,
-    'The class label for which '
-    'the scores are to be computed')
-flags.DEFINE_integer(
-    'num_proposals', 5,
-    'Number of proposals to be '
-    'extracted for each image')
+    'num_max_proposals', 5,
+    'Max. number of proposals '
+    'to be extracted for each image')
 
 flags.mark_flag_as_required('dataset')
 flags.mark_flag_as_required('class_ids')
@@ -105,12 +99,16 @@ def _get_most_activated_patch_idxs_from_channels(z, channel_idxs):
 
 def _get_score_matrix_for_image(image_idx, num_max_proposals, context):
     score_matrix = list()
+    column_ids = list()
 
     z = context.get_model_output(image_idx)
     num_patches = z.size(1) * z.size(2)
     ch = _get_most_activated_channels(z, num_channels=num_max_proposals)
     pids = _get_most_activated_patch_idxs_from_channels(z, ch)
     proto_patches = _get_patches(z, pids, normalize=True)
+
+    for patch_idx in pids.cpu().numpy():
+        column_ids.append([image_idx, patch_idx])
 
     for image_idx_ in trange(len(context.dataset), leave=True):
         z_ = context.get_model_output(image_idx_)
@@ -120,15 +118,16 @@ def _get_score_matrix_for_image(image_idx, num_max_proposals, context):
 
         score_matrix.append(scores)
 
-    return np.array(score_matrix)
+    return np.array(score_matrix), column_ids
 
 
 def main(argv):
     del argv  # unused
 
     filter_class_ids = list(map(int, FLAGS.class_ids))
-    logging.info('calculating scores for classes %s'
-                 % ', '.join(map(str, filter_class_ids)))
+    logging.info('calculating scores for classes %s from %s'
+                 % (', '.join(map(str, filter_class_ids)),
+                    FLAGS.dataset))
 
     dataset_class = DATASET_MAP[FLAGS.dataset]
     data_dir = DATA_DIR_MAP[FLAGS.dataset]
@@ -148,32 +147,39 @@ def main(argv):
         dataset=dataset,
         layer_idx=FLAGS.layer_idx)
 
-    out_filename = 'label-%s.npy' % (FLAGS.filter_class_label
-                                     if FLAGS.filter_class_label is not None
-                                     else 'all')
-    out_dirpath = os.path.join(SCRATCH_DIR, 'scores', FLAGS.dataset,
-                               f'vgg16-layer{FLAGS.layer_idx}',
-                               '_'.join(map(str, filter_class_ids)))
+    out_filename = '-'.join([
+        f'vgg16_layer{FLAGS.layer_idx}',
+        FLAGS.dataset,
+        '_'.join(map(str, filter_class_ids)),
+        'scores.npz'])
+    out_dirpath = os.path.join(SCRATCH_DIR, 'scores')
     out_filepath = os.path.join(out_dirpath, out_filename)
 
     os.makedirs(out_dirpath, exist_ok=True)
     logging.info('saving output to %s' % out_filepath)
 
     all_scores_matrix = None
+    all_column_ids = list()
     for image_idx in trange(len(context.dataset)):
         image_label = context.dataset[image_idx][1]
         if (FLAGS.filter_class_label is None
                 or image_label == FLAGS.filter_class_label):
 
             if all_scores_matrix is None:
-                all_scores_matrix = _get_score_matrix_for_image(
+                scores, cols = _get_score_matrix_for_image(
                     image_idx, FLAGS.num_proposals, context)
-            else:
-                all_scores_matrix = np.concatenate(
-                    (all_scores_matrix, _get_score_matrix_for_image(
-                        image_idx, FLAGS.num_proposals, context)), axis=1)
 
-            np.save(out_filepath, all_scores_matrix)
+                all_scores_matrix = scores
+                all_column_ids += cols
+            else:
+                scores, cols = _get_score_matrix_for_image(
+                    image_idx, FLAGS.num_proposals, context)
+
+                all_scores_matrix = np.concatenate(
+                    (all_scores_matrix, scores), axis=1)
+                all_column_ids += cols
+
+            np.savez(out_filepath, scores=all_scores_matrix, cols=all_column_ids)
 
 
 if __name__ == '__main__':
