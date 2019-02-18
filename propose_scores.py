@@ -9,6 +9,7 @@ from tqdm import trange
 from goggles.constants import *
 from goggles.models.vgg import Vgg16
 from goggles.opts import DATASET_MAP, DATA_DIR_MAP
+from goggles.utils.notify import notify
 
 
 FLAGS = flags.FLAGS
@@ -180,6 +181,8 @@ def main(argv):
                 all_column_ids += cols
 
             np.savez(out_filepath, scores=all_scores_matrix, cols=all_column_ids)
+
+    notify(f'Finished: {FLAGS.dataset} - {FLAGS.class_ids}', namespace='scores')
 
 
 if __name__ == '__main__':
