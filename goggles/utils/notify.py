@@ -3,8 +3,8 @@ import os
 import pushed
 
 
-APP_KEY = os.getenv('GOGGLES-PUSHED-APP-KEY')
-APP_SECRET = os.getenv('GOGGLES-PUSHED-APP-SECRET')
+APP_KEY = os.getenv('GOGGLES_PUSHED_APP_KEY')
+APP_SECRET = os.getenv('GOGGLES_PUSHED_APP_SECRET')
 
 
 def notify(message, namespace=None):

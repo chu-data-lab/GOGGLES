@@ -162,25 +162,21 @@ def main(argv):
     all_scores_matrix = None
     all_column_ids = list()
     for image_idx in trange(len(context.dataset)):
-        image_label = context.dataset[image_idx][1]
-        if (FLAGS.filter_class_label is None
-                or image_label == FLAGS.filter_class_label):
+        if all_scores_matrix is None:
+            scores, cols = _get_score_matrix_for_image(
+                image_idx, FLAGS.num_proposals, context)
 
-            if all_scores_matrix is None:
-                scores, cols = _get_score_matrix_for_image(
-                    image_idx, FLAGS.num_proposals, context)
+            all_scores_matrix = scores
+            all_column_ids += cols
+        else:
+            scores, cols = _get_score_matrix_for_image(
+                image_idx, FLAGS.num_proposals, context)
 
-                all_scores_matrix = scores
-                all_column_ids += cols
-            else:
-                scores, cols = _get_score_matrix_for_image(
-                    image_idx, FLAGS.num_proposals, context)
+            all_scores_matrix = np.concatenate(
+                (all_scores_matrix, scores), axis=1)
+            all_column_ids += cols
 
-                all_scores_matrix = np.concatenate(
-                    (all_scores_matrix, scores), axis=1)
-                all_column_ids += cols
-
-            np.savez(out_filepath, scores=all_scores_matrix, cols=all_column_ids)
+        np.savez(out_filepath, scores=all_scores_matrix, cols=all_column_ids)
 
     notify(f'Finished: {FLAGS.dataset} - {FLAGS.class_ids}', namespace='scores')
 
