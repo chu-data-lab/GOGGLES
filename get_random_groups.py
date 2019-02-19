@@ -8,7 +8,7 @@ from goggles.data.cub.metadata import load_cub_metadata
 FLAGS = flags.FLAGS
 
 flags.DEFINE_integer(
-    'seed', 42,
+    'seed', 1000,
     'Random Seed')
 flags.DEFINE_enum(
     'dataset', None, ['awa2', 'cub'],
