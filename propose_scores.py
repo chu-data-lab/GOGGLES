@@ -114,7 +114,7 @@ def _get_score_matrix_for_image(image_idx, num_max_proposals, context):
     for image_idx_ in trange(len(context.dataset), leave=True):
         z_ = context.get_model_output(image_idx_)
         img_patches = _get_patches(z_, range(num_patches), normalize=True)
-        scores = 1 - torch.matmul(img_patches, proto_patches.t()).max(0)[0]
+        scores = torch.matmul(img_patches, proto_patches.t()).max(0)[0]
         scores = scores.cpu().numpy()
 
         score_matrix.append(scores)
