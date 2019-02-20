@@ -40,7 +40,7 @@ celery worker \
 
 ### Queue jobs
 ```bash
-python celery-enqueue-job.py with \
+python celery-enqueue-job.py goggles/train.py with \
     num_epochs=12000 \
     filter_class_ids=14,90
 ```

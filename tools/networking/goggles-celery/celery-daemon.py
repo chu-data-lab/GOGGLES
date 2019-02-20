@@ -16,27 +16,26 @@ GOGGLES_BASE_DIR = os.environ['GOGGLES_BASE_DIR']
 assert os.path.isdir(GOGGLES_BASE_DIR)
 
 app = Celery(APP_NAME, broker=BROKER_URL, backend=BACKEND_URL)
+app.conf.update(worker_prefetch_multiplier=1)
+
 new_session_id = lambda: 'goggles-%s' % (time.strftime('%Y%m%dT%H%M%S'))
 
 
 @app.task(bind=True)
-def train(self, train_args):
-    print('Starting training %s' % train_args)
+def run_script(self, script_path, script_args):
+    print(f'Running {script_path} with "{script_args}"')
 
-    LOCK_FILE = None
-    LOCK_DIR = os.path.join(
+    lock_file = None
+    lock_dir = os.path.join(
         GOGGLES_BASE_DIR, '_scratch', 'locks')
-    if not os.path.exists(LOCK_DIR):
-        os.makedirs(LOCK_DIR)
+    if not os.path.exists(lock_dir):
+        os.makedirs(lock_dir)
 
-    TRAINING_SRC_PATH = os.path.join(
-        GOGGLES_BASE_DIR, 'goggles', 'train.py')
-    assert os.path.isfile(TRAINING_SRC_PATH)
+    script_full_path = os.path.join(GOGGLES_BASE_DIR, script_path)
+    assert os.path.isfile(script_full_path)
 
-    ACTIVATE_ENV_CMD = 'source activate %s' % GOGGLES_ENV
-    RUN_TRAINING_CMD = 'python3 {training_src_path} {train_args}'.format(
-        training_src_path=TRAINING_SRC_PATH,
-        train_args=train_args)
+    activate_env_cmd = 'source activate %s' % GOGGLES_ENV
+    run_script_cmd = f'python3 {script_full_path} {script_args}'
 
     server = libtmux.Server()
     hostname = socket.gethostname()
@@ -46,8 +45,8 @@ def train(self, train_args):
         try:
             session = server.new_session(session_id)
 
-            LOCK_FILE = os.path.join(LOCK_DIR, '%s.lock' % session_id)
-            with open(LOCK_FILE, 'w') as f:
+            lock_file = os.path.join(lock_dir, '%s.lock' % session_id)
+            with open(lock_file, 'w') as f:
                 f.write(self.request.id)
 
         except TmuxSessionExists:
@@ -57,17 +56,17 @@ def train(self, train_args):
             break
 
     assert session is not None
-    assert os.path.isfile(LOCK_FILE)
+    assert os.path.isfile(lock_file)
 
-    session.attached_pane.send_keys(ACTIVATE_ENV_CMD)
+    session.attached_pane.send_keys(activate_env_cmd)
     time.sleep(4)  # Waiting for env to get activated
-    session.attached_pane.send_keys('%s; %s' % (
-        RUN_TRAINING_CMD,
-        'rm -f %s' % LOCK_FILE))
+    session.attached_pane.send_keys(
+        f'{run_script_cmd};'
+        f'rm -f {lock_file}')
 
-    while os.path.exists(LOCK_FILE):
+    while os.path.exists(lock_file):
         self.update_state(
-            state='TRAINING',
+            state='RUNNING',
             meta={'hostname': hostname,
                   'session_id': session_id})
 
