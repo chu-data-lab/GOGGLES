@@ -53,12 +53,12 @@ class GogglesProbabilisticModel:
             axis.plot(x, pdf, linewidth=4)
 
         def log_cdf(self, s):
-            return norm.logcdf(s + 1e-5000, loc=self.mu, scale=self.std)
+            return norm.logcdf(s, loc=self.mu, scale=self.std)
 
         def log_sf(self, s):
-            return norm.logsf(s + 1e-5000, loc=self.mu, scale=self.std)
+            return norm.logsf(s, loc=self.mu, scale=self.std)
     
-    def __init__(self, scores, cols, p1, y):
+    def __init__(self, scores, cols, y):
         self._scores = scores
         self._cols = cols
         self._y = y
@@ -66,7 +66,7 @@ class GogglesProbabilisticModel:
         self._num_rows = scores.shape[0]
         self._num_cols = scores.shape[1]
         self._labels = list(sorted(np.unique(y)))
-        self.p1 = p1
+        self.p1 = Counter(list(y))[1] / float(len(y))
         
         assert len(y) == self._num_rows
         
@@ -131,11 +131,13 @@ class GogglesProbabilisticModel:
         bi = np.exp(log_bi)
         p1 = self.p1
         
-        t = np.exp(log_ai + log_p1 - np.log((ai * p1) + (bi * (1 - p1)) + 1e-5000))
-        return t if t <= 1. else 1.
+        bi_over_ai = np.exp(max(min(log_bi - log_ai, 700), -700))
+        
+        t = p1 / (p1 + ((1 - p1) * bi_over_ai))
+        return min(t, 1.)
     
     def update_model(self, y):
-        self.__init__(self._scores, self._cols, self.p1, y)
+        self.__init__(self._scores, self._cols, y)
             
     def get_class_wise_scores(self, j):
         class_wise_scores = dict()
@@ -160,19 +162,16 @@ class GogglesProbabilisticModel:
         return class_wise_parameters
     
     @classmethod
-    def run_em(cls, scores, cols, y_init, p1=None, max_iter=100):
+    def run_em(cls, scores, cols, y_init, max_iter=100):
         n = y_init.shape[0]
         y = np.array(y_init)
         
-        if p1 is None:
-            p1 = Counter(list(y))[1] / float(len(y))
-        
-        model = cls(scores, cols, p1, y)
+        model = cls(scores, cols, y)
         with tqdm(range(max_iter), leave=True) as pbar:
             for _ in pbar:
                 # E-step
                 y_new = list()
-                for i in trange(n, leave=True):
+                for i in range(n):
                     tau_i = model.tau(i)
                     y_i = np.random.choice(2, 1, p=[1 - tau_i, tau_i])[0]
                     y_new.append(y_i)
@@ -228,9 +227,7 @@ def main(argv):
     try:
         np.random.seed(sum(v * (10**(3*i)) for i,v in enumerate(class_ids)))
         y_init = np.random.randint(2, size=scores.shape[0])
-        y_em = GogglesProbabilisticModel.run_em(
-            scores, col_ids, y_init,
-            p1=Counter(list(y_true))[1] / float(len(y_true)))
+        y_em = GogglesProbabilisticModel.run_em(scores, col_ids, y_init)
         em_rand_acc = best_acc(y_true, y_em)
     except:
         em_rand_acc = 0.
