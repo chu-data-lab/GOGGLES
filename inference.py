@@ -167,7 +167,7 @@ class GogglesProbabilisticModel:
         if p1 is None:
             p1 = Counter(list(y))[1] / float(len(y))
         
-        model = cls(scores, cols, y)
+        model = cls(scores, cols, p1, y)
         with tqdm(range(max_iter), leave=True) as pbar:
             for _ in pbar:
                 # E-step
