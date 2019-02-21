@@ -237,7 +237,7 @@ def main(argv):
                     kmeans_acc))
     logging.info('kmeans + em accuracy for classes %s: %0.9f' 
                  % (', '.join(map(str, class_ids)), 
-                    y_em_kmeans))
+                    em_kmeans_acc))
     logging.info('random init + em accuracy for classes %s: %0.9f' 
                  % (', '.join(map(str, class_ids)), 
                     em_rand_acc))
