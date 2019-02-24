@@ -221,10 +221,10 @@ class GogglesProbabilisticModel:
             for _ in pbar:
                 # E-step
                 y_new = list()
-                # tau = Parallel(n_jobs=num_cores)(
-                #     delayed(model.tau)(i) for i in range(n))
+                tau = Parallel(n_jobs=num_cores)(
+                    delayed(model.tau)(i) for i in range(n))
                 for i in range(n):
-                    tau_i = model.tau(i)
+                    tau_i = tau[i]
                     y_i = np.random.choice(2, 1, p=[1 - tau_i, tau_i])[0]
                     y_new.append(y_i)
 
@@ -320,7 +320,7 @@ def main(argv):
             GogglesProbabilisticModel.run_em(scores, col_ids, y_kmeans)
 
         kmeans_init_model.save_model(kmeans_init_model_out_filepath)
-        logging.info(f'saved k-means init model at '
+        logging.info(f'Saved k-means init model at '
                      f'{kmeans_init_model_out_filepath}')
 
         kmeans_em_acc = best_acc(y_true, y_kmeans_em)
@@ -336,7 +336,7 @@ def main(argv):
         rand_init_model, y_rand_em = \
             GogglesProbabilisticModel.run_em(scores, col_ids, y_init, p1=p1)
         rand_init_model.save_model(rand_init_model_out_filepath)
-        logging.info(f'saved rand init model at '
+        logging.info(f'Saved rand init model at '
                      f'{rand_init_model_out_filepath}')
 
         rand_em_acc = best_acc(y_true, y_rand_em)
@@ -344,7 +344,7 @@ def main(argv):
         print(e)
         rand_em_acc = 0.
 
-    logging.info('image counts: %s' % str(Counter(y_true)))
+    logging.info('Image counts: %s' % str(Counter(y_true)))
 
     logging.info('only k-means accuracy for classes %s: %0.9f'
                  % (', '.join(map(str, class_ids)), 
@@ -359,7 +359,7 @@ def main(argv):
     np.savez(preds_out_filepath,
              y_true=y_true, y_kmeans=y_kmeans,
              y_kmeans_em=y_kmeans_em, y_rand_em=y_rand_em)
-    logging.info(f'saved predictions at {preds_out_filepath}')
+    logging.info(f'Saved predictions at {preds_out_filepath}')
 
 
 if __name__ == '__main__':
