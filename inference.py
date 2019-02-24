@@ -165,14 +165,30 @@ class GogglesProbabilisticModel:
 
         return class_wise_parameters
 
+    def get_probabilistic_labels(self, scores):
+        probs = list()
+        for i in range(scores.shape[0]):
+            log_ai = sum(self.log_alpha(j, scores[i, j])
+                         for j in range(scores.shape[1]))
+            log_bi = sum(self.log_beta(j, scores[i, j])
+                         for j in range(scores.shape[1]))
+
+            p1 = self._p1
+
+            bi_over_ai = np.exp(max(min(log_bi - log_ai, 700), -700))
+
+            t = p1 / (p1 + ((1 - p1) * bi_over_ai))
+            probs.append(min(t, 1.))
+
+        return np.array(probs)
+
     def update_model(self, y, update_prior=False):
         self.__init__(self._scores, self._cols, y,
                       p1=(None if update_prior
                           else self._p1))
 
     def save_model(self, filepath):
-        out = open(filepath, 'wb')
-        pickle.dump(self, out)
+        pickle.dump(self, open(filepath, 'wb'))
 
     @staticmethod
     def load_model(filepath):
@@ -200,14 +216,13 @@ class GogglesProbabilisticModel:
                     y_i = np.random.choice(2, 1, p=[1 - tau_i, tau_i])[0]
                     y_new.append(y_i)
 
+                # M-step
                 y_new = np.array(y_new)
+                model.update_model(y, update_prior=update_prior)
 
                 if np.linalg.norm(y_new - y) == 0:
                     break
-
-                # M-step
                 y = np.array(y_new)
-                model.update_model(y, update_prior=update_prior)
             
         return model, y_new
 
@@ -289,11 +304,12 @@ def main(argv):
             GogglesProbabilisticModel.run_em(scores, col_ids, y_kmeans)
 
         kmeans_init_model.save_model(kmeans_init_model_out_filepath)
-        logging.info(f'Saved k-means init model at '
+        logging.info(f'saved k-means init model at '
                      f'{kmeans_init_model_out_filepath}')
 
         kmeans_em_acc = best_acc(y_true, y_kmeans_em)
-    except:
+    except Exception as e:
+        print(e)
         kmeans_em_acc = 0.
 
     try:
@@ -303,14 +319,15 @@ def main(argv):
         rand_init_model, y_rand_em = \
             GogglesProbabilisticModel.run_em(scores, col_ids, y_init, p1=p1)
         rand_init_model.save_model(rand_init_model_out_filepath)
-        logging.info(f'Saved rand init model at '
+        logging.info(f'saved rand init model at '
                      f'{rand_init_model_out_filepath}')
 
         rand_em_acc = best_acc(y_true, y_rand_em)
-    except:
+    except Exception as e:
+        print(e)
         rand_em_acc = 0.
 
-    logging.info('Image counts: %s' % str(Counter(y_true)))
+    logging.info('image counts: %s' % str(Counter(y_true)))
 
     logging.info('only kmeans accuracy for classes %s: %0.9f' 
                  % (', '.join(map(str, class_ids)), 
@@ -325,7 +342,7 @@ def main(argv):
     np.savez(preds_out_filepath,
              y_true=y_true, y_kmeans=y_kmeans,
              y_kmeans_em=y_kmeans_em, y_rand_em=y_rand_em)
-    logging.info(f'Saved predictions at {preds_out_filepath}')
+    logging.info(f'saved predictions at {preds_out_filepath}')
 
 
 if __name__ == '__main__':
