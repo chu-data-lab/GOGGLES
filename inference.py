@@ -60,11 +60,11 @@ class GogglesProbabilisticModel:
             pdf = norm.pdf(x, self.mu, self.std)
             axis.plot(x, pdf, linewidth=4)
 
-        @jit(nogil=True)
+        @jit(nopython=True, nogil=True)
         def log_cdf(self, s):
             return norm.logcdf(s, loc=self.mu, scale=self.std)
 
-        @jit(nogil=True)
+        @jit(nopython=True, nogil=True)
         def log_sf(self, s):
             return norm.logsf(s, loc=self.mu, scale=self.std)
     
@@ -87,16 +87,16 @@ class GogglesProbabilisticModel:
         for j in range(self._num_cols):
             self._params.append(self.fit_conditional_parameters(j))
 
-    @jit(nogil=True)
+    @jit(nopython=True, nogil=True)
     def y(self, i):
         return self._y[i]
 
-    @jit(nogil=True)
+    @jit(nopython=True, nogil=True)
     def z(self, j):
         i, _ = self._cols[j]
         return self.y(i)
 
-    @jit(nogil=True)
+    @jit(nopython=True, nogil=True)
     def s(self, i, j):
         return self._scores[i, j]
 
@@ -122,7 +122,7 @@ class GogglesProbabilisticModel:
 
         return class_wise_parameters
 
-    @jit(nogil=True)
+    @jit(nopython=True, nogil=True)
     def log_alpha(self, j, s):
         gaussian = self._params[j][1]
         
@@ -133,7 +133,7 @@ class GogglesProbabilisticModel:
         else:
             raise ValueError('Only binary labels supported')
 
-    @jit(nogil=True)
+    @jit(nopython=True, nogil=True)
     def log_beta(self, j, s):
         gaussian = self._params[j][0]
         
@@ -144,7 +144,7 @@ class GogglesProbabilisticModel:
         else:
             raise ValueError('Only binary labels supported')
 
-    @jit(nogil=True, parallel=True)
+    @jit(nopython=True, nogil=True, parallel=True)
     def log_a(self, i):
         log_ai = 0.
         
@@ -154,7 +154,7 @@ class GogglesProbabilisticModel:
                 
         return log_ai
 
-    @jit(nogil=True, parallel=True)
+    @jit(nopython=True, nogil=True, parallel=True)
     def log_b(self, i):
         log_bi = 0.
         
@@ -164,7 +164,7 @@ class GogglesProbabilisticModel:
                 
         return log_bi
 
-    @jit(nogil=True, parallel=True)
+    @jit(nopython=True, nogil=True, parallel=True)
     def tau(self, i):
         log_ai = self.log_a(i)
         log_bi = self.log_b(i)
@@ -324,8 +324,7 @@ def main(argv):
                      f'{kmeans_init_model_out_filepath}')
 
         kmeans_em_acc = best_acc(y_true, y_kmeans_em)
-    except Exception as e:
-        print(e)
+    except:
         kmeans_em_acc = 0.
 
     logging.info('running EM with random initialization...')
@@ -340,8 +339,7 @@ def main(argv):
                      f'{rand_init_model_out_filepath}')
 
         rand_em_acc = best_acc(y_true, y_rand_em)
-    except Exception as e:
-        print(e)
+    except:
         rand_em_acc = 0.
 
     logging.info('Image counts: %s' % str(Counter(y_true)))
