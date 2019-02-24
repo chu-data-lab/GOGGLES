@@ -209,8 +209,14 @@ class GogglesProbabilisticModel:
             for _ in pbar:
                 # E-step
                 y_new = list()
-                gamma = Parallel(n_jobs=num_cores)(
-                    delayed(model.gamma)(i) for i in range(n))
+
+                if n >= 500:
+                    gamma = Parallel(n_jobs=num_cores)(
+                        delayed(model.gamma)(i) for i in range(n))
+                else:
+                    gamma = [model.gamma(i)
+                             for i in tqdm(range(n), leave=True)]
+
                 for i in range(n):
                     gamma_i = gamma[i]
                     y_i = np.random.choice(2, 1, p=[1 - gamma_i, gamma_i])[0]
