@@ -1,4 +1,6 @@
 from collections import Counter
+from joblib import Parallel, delayed
+import multiprocessing
 import os
 import pickle
 import random
@@ -183,14 +185,18 @@ class GogglesProbabilisticModel:
 
         n = y_init.shape[0]
         y = np.array(y_init)
+
+        num_cores = multiprocessing.cpu_count()
         
         model = cls(scores, cols, y, p1=p1)
         with tqdm(range(max_iter), leave=True) as pbar:
             for _ in pbar:
                 # E-step
                 y_new = list()
-                for i in tqdm(range(n), leave=True):
-                    tau_i = model.tau(i)
+                tau = Parallel(n_jobs=num_cores)(
+                    delayed(model.tau)(i) for i in range(n))
+                for i in range(n):
+                    tau_i = tau[i]
                     y_i = np.random.choice(2, 1, p=[1 - tau_i, tau_i])[0]
                     y_new.append(y_i)
 
