@@ -154,9 +154,9 @@ def main(argv):
         '_'.join(map(str, filter_class_ids)),
         'scores.npz'])
     out_dirpath = os.path.join(SCRATCH_DIR, 'scores')
+    os.makedirs(out_dirpath, exist_ok=True)
     out_filepath = os.path.join(out_dirpath, out_filename)
 
-    os.makedirs(out_dirpath, exist_ok=True)
     logging.info('saving output to %s' % out_filepath)
 
     all_scores_matrix = None
