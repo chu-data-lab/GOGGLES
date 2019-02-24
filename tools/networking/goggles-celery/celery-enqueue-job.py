@@ -21,7 +21,7 @@ if __name__ == '__main__':
 
     result = app.send_task(
         '%s.%s' % (APP_NAME, TASK_NAME),
-        args=(arg_str,))
+        args=(script_path, arg_str))
 
     start, timeout = time.time(), 60
     while True:
