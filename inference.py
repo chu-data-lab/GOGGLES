@@ -6,6 +6,7 @@ import pickle
 import random
 
 from absl import app, flags, logging
+from numba import jit, prange
 import numpy as np
 from scipy.stats import norm
 from sklearn.cluster import KMeans
@@ -59,9 +60,11 @@ class GogglesProbabilisticModel:
             pdf = norm.pdf(x, self.mu, self.std)
             axis.plot(x, pdf, linewidth=4)
 
+        @jit('float64(float64)', nopython=True, nogil=True)
         def log_cdf(self, s):
             return norm.logcdf(s, loc=self.mu, scale=self.std)
 
+        @jit('float64(float64)', nopython=True, nogil=True)
         def log_sf(self, s):
             return norm.logsf(s, loc=self.mu, scale=self.std)
     
@@ -83,17 +86,43 @@ class GogglesProbabilisticModel:
         self._params = list()
         for j in range(self._num_cols):
             self._params.append(self.fit_conditional_parameters(j))
-        
+
+    @jit('uint32(uint32)', nopython=True, nogil=True)
     def y(self, i):
         return self._y[i]
-    
+
+    @jit('uint32(uint32)', nopython=True, nogil=True)
     def z(self, j):
         i, _ = self._cols[j]
         return self.y(i)
-    
+
+    @jit('float64(uint32, uint32)', nopython=True, nogil=True)
     def s(self, i, j):
         return self._scores[i, j]
-    
+
+    def get_class_wise_scores(self, j):
+        class_wise_scores = dict()
+        for label in self._labels:
+            class_wise_scores[label] = \
+                self._scores[np.where(self._y == label), j].flatten()
+
+        return class_wise_scores
+
+    def fit_conditional_parameters(self, j):
+        class_wise_scores = self.get_class_wise_scores(j)
+
+        class_wise_parameters = dict()
+        for label in self._labels:
+            gmm = GaussianMixture(n_components=1)
+            gmm.fit(class_wise_scores[label].reshape(-1, 1))
+
+            class_wise_parameters[label] = \
+                self.Gaussian(mu=gmm.means_.flatten()[0],
+                              std=np.sqrt(gmm.covariances_.flatten()[0]))
+
+        return class_wise_parameters
+
+    @jit('float64(uint32, float64)', nopython=True, nogil=True)
     def log_alpha(self, j, s):
         gaussian = self._params[j][1]
         
@@ -103,7 +132,8 @@ class GogglesProbabilisticModel:
             return gaussian.log_sf(s)
         else:
             raise ValueError('Only binary labels supported')
-            
+
+    @jit('float64(uint32, float64)', nopython=True, nogil=True)
     def log_beta(self, j, s):
         gaussian = self._params[j][0]
         
@@ -113,25 +143,28 @@ class GogglesProbabilisticModel:
             return gaussian.log_sf(s)
         else:
             raise ValueError('Only binary labels supported')
-            
+
+    @jit('float64(uint32)', nopython=True, nogil=True, parallel=True)
     def log_a(self, i):
         log_ai = 0.
         
-        for j in range(self._num_cols):
+        for j in prange(self._num_cols):
             sij = self.s(i, j)
             log_ai += self.log_alpha(j, sij)
                 
         return log_ai
-    
+
+    @jit('float64(uint32)', nopython=True, nogil=True, parallel=True)
     def log_b(self, i):
         log_bi = 0.
         
-        for j in range(self._num_cols):
+        for j in prange(self._num_cols):
             sij = self.s(i, j)
             log_bi += self.log_beta(j, sij)
                 
         return log_bi
-    
+
+    @jit('float64(uint32)', nopython=True, nogil=True, parallel=True)
     def tau(self, i):
         log_ai = self.log_a(i)
         log_bi = self.log_b(i)
@@ -142,29 +175,24 @@ class GogglesProbabilisticModel:
         
         t = p1 / (p1 + ((1 - p1) * bi_over_ai))
         return min(t, 1.)
-    
-    def get_class_wise_scores(self, j):
-        class_wise_scores = dict()
-        for label in self._labels:
-            class_wise_scores[label] = \
-                self._scores[np.where(self._y == label), j].flatten()
-    
-        return  class_wise_scores
-    
-    def fit_conditional_parameters(self, j):
-        class_wise_scores = self.get_class_wise_scores(j)
-        
-        class_wise_parameters = dict()
-        for label in self._labels:
-            gmm = GaussianMixture(n_components=1)
-            gmm.fit(class_wise_scores[label].reshape(-1, 1))
-            
-            class_wise_parameters[label] = \
-                self.Gaussian(mu=gmm.means_.flatten()[0],
-                              std=np.sqrt(gmm.covariances_.flatten()[0]))
 
-        return class_wise_parameters
+    def get_probabilistic_labels(self, scores):
+        probs = list()
+        for i in range(scores.shape[0]):
+            log_ai = sum(self.log_alpha(j, scores[i, j])
+                         for j in range(scores.shape[1]))
+            log_bi = sum(self.log_beta(j, scores[i, j])
+                         for j in range(scores.shape[1]))
 
+            p1 = self._p1
+
+            bi_over_ai = np.exp(max(min(log_bi - log_ai, 700), -700))
+
+            t = p1 / (p1 + ((1 - p1) * bi_over_ai))
+            probs.append(min(t, 1.))
+
+        return np.array(probs)
+    
     def update_model(self, y, update_prior=False):
         self.__init__(self._scores, self._cols, y,
                       p1=(None if update_prior
@@ -200,14 +228,13 @@ class GogglesProbabilisticModel:
                     y_i = np.random.choice(2, 1, p=[1 - tau_i, tau_i])[0]
                     y_new.append(y_i)
 
+                # M-step
                 y_new = np.array(y_new)
+                model.update_model(y_new, update_prior=update_prior)
 
                 if np.linalg.norm(y_new - y) == 0:
                     break
-
-                # M-step
                 y = np.array(y_new)
-                model.update_model(y, update_prior=update_prior)
             
         return model, y_new
 
@@ -261,6 +288,7 @@ def main(argv):
 
     input_image_size = 224
 
+    logging.info('loading data...')
     if FLAGS.dataset == 'cub':
         dataset = CUBDataset.load_all_data(
             CUB_DATA_DIR, input_image_size, class_ids)
@@ -269,7 +297,8 @@ def main(argv):
             AWA2_DATA_DIR, input_image_size, class_ids)
 
     y_true = [v[1] for v in dataset]
-    
+
+    logging.info('loading scores...')
     scores, col_ids = load_scores(
         os.path.join(
             SCRATCH_DIR, 'scores',
@@ -281,9 +310,11 @@ def main(argv):
     random.seed(seed)
     np.random.seed(seed)
 
+    logging.info('running k-means...')
     y_kmeans = KMeans(n_clusters=2).fit_predict(scores)
     kmeans_acc = best_acc(y_true, y_kmeans)
-    
+
+    logging.info('running EM with k-means initialization...')
     try:
         kmeans_init_model, y_kmeans_em = \
             GogglesProbabilisticModel.run_em(scores, col_ids, y_kmeans)
@@ -296,6 +327,7 @@ def main(argv):
     except:
         kmeans_em_acc = 0.
 
+    logging.info('running EM with random initialization...')
     try:
         y_init = np.random.randint(2, size=scores.shape[0])
         p1 = Counter(list(y_kmeans))[1] / float(len(y_kmeans))
@@ -312,10 +344,10 @@ def main(argv):
 
     logging.info('Image counts: %s' % str(Counter(y_true)))
 
-    logging.info('only kmeans accuracy for classes %s: %0.9f' 
+    logging.info('only k-means accuracy for classes %s: %0.9f'
                  % (', '.join(map(str, class_ids)), 
                     kmeans_acc))
-    logging.info('kmeans + em accuracy for classes %s: %0.9f' 
+    logging.info('k-means + em accuracy for classes %s: %0.9f'
                  % (', '.join(map(str, class_ids)), 
                     kmeans_em_acc))
     logging.info('random init + em accuracy for classes %s: %0.9f' 

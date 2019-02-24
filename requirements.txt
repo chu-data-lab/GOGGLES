@@ -3,6 +3,7 @@ celery==4.2.1
 gitpython
 joblib==0.13.0
 libtmux==0.8.0
+numba==0.42.0
 numpy==1.15.1
 pushed==0.1.4
 redis==3.0.1
