@@ -60,11 +60,11 @@ class GogglesProbabilisticModel:
             pdf = norm.pdf(x, self.mu, self.std)
             axis.plot(x, pdf, linewidth=4)
 
-        @jit(nopython=True, nogil=True)
+        @jit('float64(float64)', nopython=True, nogil=True)
         def log_cdf(self, s):
             return norm.logcdf(s, loc=self.mu, scale=self.std)
 
-        @jit(nopython=True, nogil=True)
+        @jit('float64(float64)', nopython=True, nogil=True)
         def log_sf(self, s):
             return norm.logsf(s, loc=self.mu, scale=self.std)
     
@@ -87,16 +87,16 @@ class GogglesProbabilisticModel:
         for j in range(self._num_cols):
             self._params.append(self.fit_conditional_parameters(j))
 
-    @jit(nopython=True, nogil=True)
+    @jit('uint32(uint32)', nopython=True, nogil=True)
     def y(self, i):
         return self._y[i]
 
-    @jit(nopython=True, nogil=True)
+    @jit('uint32(uint32)', nopython=True, nogil=True)
     def z(self, j):
         i, _ = self._cols[j]
         return self.y(i)
 
-    @jit(nopython=True, nogil=True)
+    @jit('float64(uint32, uint32)', nopython=True, nogil=True)
     def s(self, i, j):
         return self._scores[i, j]
 
@@ -122,7 +122,7 @@ class GogglesProbabilisticModel:
 
         return class_wise_parameters
 
-    @jit(nopython=True, nogil=True)
+    @jit('float64(uint32, float64)', nopython=True, nogil=True)
     def log_alpha(self, j, s):
         gaussian = self._params[j][1]
         
@@ -133,7 +133,7 @@ class GogglesProbabilisticModel:
         else:
             raise ValueError('Only binary labels supported')
 
-    @jit(nopython=True, nogil=True)
+    @jit('float64(uint32, float64)', nopython=True, nogil=True)
     def log_beta(self, j, s):
         gaussian = self._params[j][0]
         
@@ -144,7 +144,7 @@ class GogglesProbabilisticModel:
         else:
             raise ValueError('Only binary labels supported')
 
-    @jit(nopython=True, nogil=True, parallel=True)
+    @jit('float64(uint32)', nopython=True, nogil=True, parallel=True)
     def log_a(self, i):
         log_ai = 0.
         
@@ -154,7 +154,7 @@ class GogglesProbabilisticModel:
                 
         return log_ai
 
-    @jit(nopython=True, nogil=True, parallel=True)
+    @jit('float64(uint32)', nopython=True, nogil=True, parallel=True)
     def log_b(self, i):
         log_bi = 0.
         
@@ -164,7 +164,7 @@ class GogglesProbabilisticModel:
                 
         return log_bi
 
-    @jit(nopython=True, nogil=True, parallel=True)
+    @jit('float64(uint32)', nopython=True, nogil=True, parallel=True)
     def tau(self, i):
         log_ai = self.log_a(i)
         log_bi = self.log_b(i)
