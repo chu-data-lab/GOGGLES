@@ -132,7 +132,7 @@ class GogglesProbabilisticModel:
                 
         return log_bi
     
-    def tau(self, i):
+    def gamma(self, i):
         log_ai = self.log_a(i)
         log_bi = self.log_b(i)
 
@@ -149,7 +149,7 @@ class GogglesProbabilisticModel:
             class_wise_scores[label] = \
                 self._scores[np.where(self._y == label), j].flatten()
     
-        return  class_wise_scores
+        return class_wise_scores
     
     def fit_conditional_parameters(self, j):
         class_wise_scores = self.get_class_wise_scores(j)
@@ -209,11 +209,11 @@ class GogglesProbabilisticModel:
             for _ in pbar:
                 # E-step
                 y_new = list()
-                tau = Parallel(n_jobs=num_cores)(
-                    delayed(model.tau)(i) for i in range(n))
+                gamma = Parallel(n_jobs=num_cores)(
+                    delayed(model.gamma)(i) for i in range(n))
                 for i in range(n):
-                    tau_i = tau[i]
-                    y_i = np.random.choice(2, 1, p=[1 - tau_i, tau_i])[0]
+                    gamma_i = gamma[i]
+                    y_i = np.random.choice(2, 1, p=[1 - gamma_i, gamma_i])[0]
                     y_new.append(y_i)
 
                 # M-step
@@ -271,8 +271,9 @@ def main(argv):
         'Model (random init) for this run already exists at %s' % \
         rand_init_model_out_filepath
 
-    logging.info('calculating accuracies for classes %s from %s'
-                 % (', '.join(map(str, class_ids)), FLAGS.dataset))
+    logging.info(f'calculating run {FLAGS.run} accuracies '
+                 f'for classes %s from %s' % (', '.join(map(str, class_ids)),
+                                              FLAGS.dataset))
 
     input_image_size = 224
 
