@@ -308,7 +308,8 @@ def main(argv):
     
     try:
         kmeans_init_model, y_kmeans_em = \
-            GogglesProbabilisticModel.run_em(scores, col_ids, y_kmeans)
+            GogglesProbabilisticModel.run_em(scores, col_ids, y_kmeans,
+                                             p1=None, update_prior=True)
 
         kmeans_init_model.save_model(kmeans_init_model_out_filepath)
         logging.info(f'saved k-means init model at '
@@ -321,10 +322,10 @@ def main(argv):
 
     try:
         y_init = np.random.randint(2, size=scores.shape[0])
-        p1 = Counter(list(y_kmeans))[1] / float(len(y_kmeans))
 
         rand_init_model, y_rand_em = \
-            GogglesProbabilisticModel.run_em(scores, col_ids, y_init, p1=p1)
+            GogglesProbabilisticModel.run_em(scores, col_ids, y_init,
+                                             p1=None, update_prior=True)
         rand_init_model.save_model(rand_init_model_out_filepath)
         logging.info(f'saved rand init model at '
                      f'{rand_init_model_out_filepath}')
