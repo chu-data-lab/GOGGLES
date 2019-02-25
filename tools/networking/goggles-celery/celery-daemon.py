@@ -1,5 +1,7 @@
 import os
+import random
 import socket
+import string
 import sys
 import time
 
@@ -18,7 +20,9 @@ assert os.path.isdir(GOGGLES_BASE_DIR)
 app = Celery(APP_NAME, broker=BROKER_URL, backend=BACKEND_URL)
 app.conf.update(worker_prefetch_multiplier=1)
 
-new_session_id = lambda: 'goggles-%s' % (time.strftime('%Y%m%dT%H%M%S'))
+new_session_id = lambda: 'goggles-%s-%s' % (
+    time.strftime('%Y%m%dT%H%M%S'),
+    ''.join(random.sample(string.ascii_lowercase, 4)))
 
 
 @app.task(bind=True)
@@ -72,5 +76,10 @@ def run_script(self, script_path, script_args):
                   'session_id': session_id})
 
         time.sleep(20)
+
+    self.update_state(
+        state='FINISHED',
+        meta={'hostname': hostname,
+              'session_id': session_id})
 
     return hostname, session_id
