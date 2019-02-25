@@ -1,3 +1,4 @@
 celery==4.2.1
+flower==0.9.2
 redis==3.0.1
 libtmux==0.8.0

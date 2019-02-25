@@ -1,10 +1,9 @@
 import os
 
-import pushed
+from slackclient import SlackClient
 
 
-APP_KEY = os.getenv('GOGGLES_PUSHED_APP_KEY')
-APP_SECRET = os.getenv('GOGGLES_PUSHED_APP_SECRET')
+API_TOKEN = os.getenv('GOGGLES_SLACK_API_TOKEN')
 
 
 def notify(message, namespace=None):
@@ -14,7 +13,12 @@ def notify(message, namespace=None):
         if namespace is not None:
             message = f'[{namespace}] ' + message
 
-        p = pushed.Pushed(APP_KEY, APP_SECRET)
-        shipment = p.push_app(message)
+        sc = SlackClient(API_TOKEN)
+        sc.api_call(
+            'chat.postMessage',
+            channel='goggles-experiments',
+            text=message,
+            username='goggles-bot')
+
     except:
         pass
