@@ -16,6 +16,7 @@ from tqdm import tqdm
 from goggles.constants import *
 from goggles.data.awa2.dataset import AwA2Dataset
 from goggles.data.cub.dataset import CUBDataset
+from goggles.utils.notify import notify
 
 
 FLAGS = flags.FLAGS
@@ -351,6 +352,11 @@ def main(argv):
              y_true=y_true, y_kmeans=y_kmeans,
              y_kmeans_em=y_kmeans_em, y_rand_em=y_rand_em)
     logging.info(f'saved predictions at {preds_out_filepath}')
+
+    notify(f'{FLAGS.dataset} (%s) '
+           f'{kmeans_acc}, {kmeans_em_acc}, {rand_em_acc}'
+           % ', '.join(map(str, class_ids)),
+           namespace='inference')
 
 
 if __name__ == '__main__':

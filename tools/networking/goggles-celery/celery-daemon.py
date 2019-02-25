@@ -62,7 +62,8 @@ def run_script(self, script_path, script_args):
     time.sleep(4)  # Waiting for env to get activated
     session.attached_pane.send_keys(
         f'{run_script_cmd};'
-        f'rm -f {lock_file}')
+        f'rm -f {lock_file}; '
+        f'exit')
 
     while os.path.exists(lock_file):
         self.update_state(
