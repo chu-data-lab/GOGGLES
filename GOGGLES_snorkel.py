@@ -136,3 +136,7 @@ def main(argv):
            f'{snorkel_acc}'
            % ', '.join(map(str, class_ids)),
            namespace='goggles-snorkel')
+
+
+if __name__ == '__main__':
+    app.run(main)
