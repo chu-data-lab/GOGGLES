@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import sys
+import random
 
 from absl import app, flags, logging
 from scipy import sparse
@@ -114,6 +115,11 @@ def main(argv):
 
     y_true = [v[1] for v in dataset]
 
+    seed = sum(v * (10 ** (3 * i))
+               for i, v in enumerate(class_ids + [FLAGS.run]))
+    random.seed(seed)
+    np.random.seed(seed)
+
     scores, col_ids = load_scores(
         os.path.join(
             SCRATCH_DIR, 'scores',
@@ -132,10 +138,10 @@ def main(argv):
 
     snorkel_acc = best_acc(y_true, y_snorkel)
 
-    notify(f'`{FLAGS.dataset}` - `%s` - `run {FLAGS.run}`: '
-           f'{snorkel_acc}'
-           % ', '.join(map(str, class_ids)),
-           namespace='goggles-snorkel')
+    # notify(f'`{FLAGS.dataset}` - `%s` - `run {FLAGS.run}`: '
+    #        f'{snorkel_acc}'
+    #        % ', '.join(map(str, class_ids)),
+    #        namespace='goggles-snorkel')
 
 
 if __name__ == '__main__':
