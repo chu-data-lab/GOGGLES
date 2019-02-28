@@ -138,10 +138,10 @@ def main(argv):
 
     snorkel_acc = best_acc(y_true, y_snorkel)
 
-    # notify(f'`{FLAGS.dataset}` - `%s` - `run {FLAGS.run}`: '
-    #        f'{snorkel_acc}'
-    #        % ', '.join(map(str, class_ids)),
-    #        namespace='goggles-snorkel')
+    notify(f'`{FLAGS.dataset}` - `%s` - `run {FLAGS.run}`: '
+           f'{snorkel_acc}'
+           % ', '.join(map(str, class_ids)),
+           namespace='goggles-snorkel')
 
 
 if __name__ == '__main__':
