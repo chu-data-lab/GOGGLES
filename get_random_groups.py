@@ -35,7 +35,7 @@ def main(argv):
     data_dir = DATA_DIR_MAP[FLAGS.dataset]
 
     list_species = load_fn(data_dir)[0]
-    list_species = map(lambda x: x.id, list_species)
+    list_species = list(map(lambda x: x.id, list_species))
 
     groups = set()
     while True:

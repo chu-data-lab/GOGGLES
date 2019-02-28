@@ -8,13 +8,13 @@ from scipy import sparse
 from sklearn.metrics import accuracy_score
 from sklearn.cluster import KMeans
 
-SNORKEL_LIB_DIR = '/home/goggles/snorkel'
+SNORKEL_LIB_DIR = os.getenv('SNORKEL_BASE_DIR')
 sys.path.append(SNORKEL_LIB_DIR)
 import snorkel
 from snorkel.learning import GenerativeModel
 
 
-GOGGLES_LIB_DIR = '/home/goggles/GOGGLES'
+GOGGLES_LIB_DIR = os.getenv('GOGGLES_BASE_DIR')
 sys.path.append(GOGGLES_LIB_DIR)
 
 from goggles.constants import *
