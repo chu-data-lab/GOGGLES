@@ -292,12 +292,15 @@ def main(argv):
             AWA2_DATA_DIR, input_image_size, class_ids)
 
     y_true = [v[1] for v in dataset]
-    
-    scores, col_ids = load_scores(
-        os.path.join(
-            SCRATCH_DIR, 'scores',
-            f'vgg16_layer30-{FLAGS.dataset}-%d_%d-scores.npz' 
-            % tuple(class_ids)))
+
+    class_ids_filename = '_'.join(map(str, class_ids))
+    npz_filename = os.path.join(SCRATCH_DIR, 'scores', 'vgg16_layer30-{}-{}-scores.npz'.format(FLAGS.dataset, class_ids_filename))
+    scores, col_ids = load_scores(npz_filename)
+    # scores, col_ids = load_scores(
+    #     os.path.join(
+    #         SCRATCH_DIR, 'scores',
+    #         f'vgg16_layer30-{FLAGS.dataset}-%d_%d-scores.npz'
+    #         % tuple(class_ids)))
 
     seed = sum(v * (10 ** (3 * i))
             for i, v in enumerate(class_ids + [FLAGS.run]))
