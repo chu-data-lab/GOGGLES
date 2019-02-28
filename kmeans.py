@@ -356,7 +356,7 @@ def main(argv):
     logging.info(f'saved predictions at {preds_out_filepath}')
 
     notify(f'`{FLAGS.dataset}` - `%s` - `run {FLAGS.run}`: '
-           f'{kmeans_acc}, {kmeans_em_acc}, {rand_em_acc}'
+           f'{kmeans_acc}'
            % ', '.join(map(str, class_ids)),
            namespace='inference')
 
