@@ -313,7 +313,7 @@ def main(argv):
             % '_'.join(map(str, class_ids))),
         pick_one_prototype=True)
 
-    seed = sum(v * (10 ** (3 * i))
+    seed = sum(v * (3 ** (3 * i))
                for i, v in enumerate(class_ids + [FLAGS.run]))
     random.seed(seed)
     np.random.seed(seed)
