@@ -1,5 +1,7 @@
 # GOGGLES
 
+GOGGLES is a system for automatically generating probabilistic labels for image datasets based on the affinity coding paradigm. The paper can be found at https://arxiv.org/abs/1903.04552
+
 ## Installation and Setup
 
 ### Setup dependencies
