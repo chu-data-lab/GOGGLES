@@ -1,8 +1,84 @@
+from sklearn.mixture import GaussianMixture
 from sklearn.cluster import KMeans
+from .cluster_class_mapping import solve_mapping
 import numpy as np
 
 
+def update_prob_using_dev_set(prob, dev_set_indices,dev_set_labels):
+    cluster_labels = np.argmax(prob, axis=1)
+    dev_cluster_labels = cluster_labels[dev_set_indices]
+    cluster_class_mapping = solve_mapping(dev_cluster_labels, dev_set_labels)
+    prob = prob[:, cluster_class_mapping]
+    prob[dev_set_indices,:] = 0
+    for i in range(len(dev_set_indices)):
+        prob[dev_set_indices[i], dev_set_labels[i]] = 1
+    return prob
+
+class SemiGMM(GaussianMixture):
+    """
+    Goggles Semi-supervised Guassian Mixture model adapted from scikit-learn.
+    The cluster-to-class mapping is performed based section 4.3
+    """
+
+    def __init__(self, n_components=1, covariance_type='full', tol=1e-4, reg_covar=1e-6):
+        super().__init__(
+            n_components=n_components, covariance_type = covariance_type,tol=tol,reg_covar=reg_covar)
+
+    def fit(self, X, dev_set_indices,dev_set_labels):
+        self.dev_set_indices = dev_set_indices
+        self.dev_set_labels = dev_set_labels
+        return super(SemiGMM, self).fit(X)
+
+    def _estimate_log_prob_resp(self,X):
+        log_prob_norm, log_resp = super()._estimate_log_prob_resp(X)
+        prob = np.exp(log_resp)
+        prob = update_prob_using_dev_set(prob,self.dev_set_indices,self.dev_set_labels)
+        log_resp = np.log(prob + 1e-200)
+        return log_prob_norm, log_resp
+
+
 class SemiBMM:
+    def __init__(self,n_components):
+        self.K = n_components
+        self.pi = np.ones(self.K)*1/self.K
+        self.mu = np.zeros(self.K)
+
+
+    def initalization(self,X):
+        km = KMeans(n_clusters=self.K)
+        y_init = km.fit_predict(X)
+        prob = np.zeros(shape=(X.shape[0],self.K))
+        for i in range(X.shape[0]):
+            prob[i:,y_init[i]] = 1
+        return prob
+
+    def fit(self,X, dev_set_indices,dev_set_labels):
+        prob = self.initalization(X)
+        self.M_step(X,prob)
+
+
+    def E_step(self):
+        for n in range(self.N):
+            sumz = 0
+            for k in range(self.K):
+                self.z[n][k] = self.pk(self.data[n], k)
+                sumz += self.z[n][k]
+            for k in range(self.K):
+                self.z[n][k] /= sumz
+        prob = np.array(self.z)
+        prob = update_prob_using_dev_set(prob,)
+
+        for n in range(self.N):
+            for k in range(self.K):
+                self.z[n][k] = prob[n,k]
+
+    def M_step(self,X, prob):
+        Ns = np.sum(prob,axis=0)
+        self.pi = Ns/prob.shape[1]
+        self.mu = [np.sum(X*prob[:,i],axis=0)/Ns[i] for i in range(self.K)]
+
+
+class SemiBMM_:
     """
     Semi-supervised Bernoulli Mixture model
     The cluster-to-class mapping is performed based section 4.3
@@ -47,15 +123,8 @@ class SemiBMM:
             for k in range(self.K):
                 self.z[n][k] /= sumz
         prob = np.array(self.z)
-        if len(self.semi_examples[0]) > 0:
-            majority_0 = np.mean(prob[:, 1][self.semi_examples[0]])
-            majority_1 = np.mean(prob[:, 1][self.semi_examples[1]])
-            if majority_1 < majority_0:
-                prob[:, [0, 1]] = prob[:, [1, 0]]
-            prob[:, 1][self.semi_examples[1]] = 1
-            prob[:, 0][self.semi_examples[1]] = 0
-            prob[:, 1][self.semi_examples[0]] = 0
-            prob[:, 0][self.semi_examples[0]] = 1
+        prob = update_prob_using_dev_set(prob,)
+
         for n in range(self.N):
             for k in range(self.K):
                 self.z[n][k] = prob[n,k]
@@ -105,7 +174,7 @@ class SemiBMM:
         print("Mu: " + str(self.mu))
         print("Pi: " + str(self.pi))
 
-    def predict(self, x):
+    def predict(self, x,dev_set_indices,dev_set_labels):
         resp = []
         for k in range(self.K):
             resp.append(self.pk(x, k))

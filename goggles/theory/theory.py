@@ -23,6 +23,7 @@ def generate_d_matrix(n, acc, K):
     print(np.trace(d)/np.sum(d))
     return d
 
+
 def n_given_sum(n_class,n_sum,n_max,x_0):
     n_given_sum_list = [[None for _ in range(n_sum+1)] for _ in range(n_class+1)]
     def _n_given_sum_(n_class,n_sum,n_max):
@@ -44,9 +45,11 @@ def n_given_sum(n_class,n_sum,n_max,x_0):
         return n
     return _n_given_sum_(n_class,n_sum,n_max)
 
+
 class DevSetTheory:
     def __init__(self,d_matrix):
         self.D_matrix = d_matrix
+        self.n=100
         self.alpha_list, self.p_alpha_list= self.p_alphas()
         self.d_alpha = self.alpha_list[1]-self.alpha_list[0]
 
@@ -63,17 +66,15 @@ class DevSetTheory:
     def P_d(self):
         prior = beta(1,1)
         P = 0
-        n=100
-        for acc in np.linspace(1e-6, 1-1e-6,n):
-            P+=prior.pdf(acc)*np.exp(self.log_likelihood(acc))*( 1 / n)
+        for acc in np.linspace(1e-6, 1-1e-6,self.n):
+            P+=prior.pdf(acc)*np.exp(self.log_likelihood(acc))*( 1 / self.n)
         return P
     def p_alphas(self):
         P_d_matrix = self.P_d()
         prior = beta(1, 1)
-        n = 100
         p_alpha_list = []
         acc_list = []
-        for acc in np.linspace(1e-6, 1-1e-6, n):
+        for acc in np.linspace(1e-6, 1-1e-6, self.n):
             p = prior.pdf(acc) * np.exp(self.log_likelihood(acc)) / P_d_matrix
             p_alpha_list.append(p)
             acc_list.append(acc)
@@ -95,6 +96,7 @@ class DevSetTheory:
         :return: the probability of feasibility
         """
         acc_greater = self.p_acc_greater(epsilon)
+        acc_greater = np.clip(acc_greater, 0, 1)
         return acc_greater
 
 
@@ -130,11 +132,12 @@ class DevSetTheory:
             for i_dim in range(self.D_matrix.shape[0]):
                 pl*=self.p_one_dim(alpha, i_dim)
             p = p + pl*p_alpha*self.d_alpha
+        p = np.clip(p,0,1)
         return p
 
 
 if __name__ == "__main__":
-    d = generate_d_matrix(25,0.77,3)
+    d = generate_d_matrix(10,0.77,2)
     theory = DevSetTheory(d)
     acc_greater = theory.p_acc_greater(0.7)
     ps = theory.p_alpha_list

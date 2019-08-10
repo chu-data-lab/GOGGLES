@@ -12,6 +12,12 @@ def construct_D(y_cluster,y_class):
 
 
 def solve_mapping(y_cluster,y_class):
+    """
+    obtain class to cluster mapping
+    :param y_cluster:
+    :param y_class:
+    :return: a list of integers where the ith element is the corresponding cluster for the ith class
+    """
     D = construct_D(y_cluster,y_class)
-    row_ind, col_ind = linear_sum_assignment(D)
+    row_ind, col_ind = linear_sum_assignment(D.T)
     return col_ind
