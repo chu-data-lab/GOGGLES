@@ -19,7 +19,6 @@ def generate_labels(affinity_matrix_list, dev_set_indices,dev_set_labels):
         LPs.append(lp)
     LPs_array = np.hstack(LPs)
     ensemble_model = SemiBMM(n_components=n_classes)
-    ensemble_model.fit(LPs_array,dev_set_indices,dev_set_labels)
-    predicted_labels = ensemble_model.predict_proba(LPs_array)
+    predicted_labels = ensemble_model.fit_predict(LPs_array,dev_set_indices,dev_set_labels)
     return predicted_labels
 

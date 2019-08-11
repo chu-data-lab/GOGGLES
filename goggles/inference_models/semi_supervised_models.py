@@ -122,5 +122,5 @@ if __name__ == "__main__":
             [1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
             [0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
             [0, 0, 0, 0, 1, 1, 1, 1, 1, 1]]
-    bmm = SemiGMM(2)
+    bmm = SemiBMM(2)
     print(bmm.fit_predict(np.array(data),dev_set_indices=[0,2],dev_set_labels=[0,1]))
