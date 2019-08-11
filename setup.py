@@ -17,6 +17,14 @@ path = os.path.join(directory, 'README.md')
 with open(path) as read_file:
     long_description = read_file.read()
 
+
+#extract requirements
+requirementPath = os.path.join(directory, 'requirements.txt')
+install_requires = []
+if os.path.isfile(requirementPath):
+    with open(requirementPath) as f:
+        install_requires = f.read().splitlines()
+
 setuptools.setup(
     name='goggles',
     version=version,
@@ -27,7 +35,7 @@ setuptools.setup(
     license='MIT License',
     packages=setuptools.find_packages(),
     include_package_data=True,
-
+    install_requires = install_requires,
     keywords='traning-data-generation machine-learning ai information-extraction affinity-coding',
     classifiers=[
         'Intended Audience :: Science/Research',
