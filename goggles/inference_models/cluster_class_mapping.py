@@ -2,6 +2,7 @@ import numpy as np
 from scipy.optimize import linear_sum_assignment
 from goggles.theory.theory import DevSetTheory
 
+
 def construct_D(y_cluster,y_class):
     K = len(set(y_class))
     D = np.zeros(shape=(K,K))
@@ -23,6 +24,6 @@ def solve_mapping(y_cluster,y_class,evaluate=False):
     if evaluate:
         print(D)
         theory = DevSetTheory(d_matrix=D)
-        print("The feasible probability is:", theory.feasibility_test())
-        print("The probability that the dev set is enough is", theory.dev_set_sufficiency_test())
+        print("The feasibility probability is:", theory.feasibility_test())
+        print("The probability of the dev set being sufficient is:", theory.dev_set_sufficiency_test())
     return col_ind
