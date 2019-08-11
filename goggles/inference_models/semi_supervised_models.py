@@ -4,15 +4,20 @@ from goggles.inference_models.cluster_class_mapping import solve_mapping
 import numpy as np
 DEL = 1e-300
 
-def update_prob_using_dev_set(prob, dev_set_indices,dev_set_labels):
+def update_prob_using_mapping(prob, dev_set_indices, dev_set_labels,evaluate=False):
     cluster_labels = np.argmax(prob, axis=1)
     dev_cluster_labels = cluster_labels[dev_set_indices]
-    cluster_class_mapping = solve_mapping(dev_cluster_labels, dev_set_labels)
+    cluster_class_mapping = solve_mapping(dev_cluster_labels, dev_set_labels,evaluate)
     prob = prob[:, cluster_class_mapping]
-    prob[dev_set_indices,:] = 0
-    for i in range(len(dev_set_indices)):
-        prob[dev_set_indices[i], dev_set_labels[i]] = 1
     return prob
+
+
+def set_prob_dev_values(prob, dev_set_indices, dev_set_labels):
+    #prob[dev_set_indices, :] = 0
+    #for i in range(len(dev_set_indices)):
+    #    prob[dev_set_indices[i], dev_set_labels[i]] = 1
+    return prob
+
 
 
 def pmf_bernoulli(s,mu):
@@ -55,8 +60,8 @@ class SemiGMM(GaussianMixture):
             n_components=n_components, covariance_type = covariance_type,tol=tol,reg_covar=reg_covar)
 
     def fit(self, X, dev_set_indices,dev_set_labels):
-        self.dev_set_indices = dev_set_indices
-        self.dev_set_labels = dev_set_labels
+        self.dev_set_indices = np.array(dev_set_indices)
+        self.dev_set_labels = np.array(dev_set_labels)
         return super(SemiGMM, self).fit(X)
 
     def fit_predict(self,X, dev_set_indices,dev_set_labels):
@@ -66,7 +71,8 @@ class SemiGMM(GaussianMixture):
     def _estimate_log_prob_resp(self,X):
         log_prob_norm, log_resp = super()._estimate_log_prob_resp(X)
         prob = np.exp(log_resp)
-        prob = update_prob_using_dev_set(prob,self.dev_set_indices,self.dev_set_labels)
+        prob = update_prob_using_mapping(prob, self.dev_set_indices, self.dev_set_labels)
+        prob = set_prob_dev_values(prob, self.dev_set_indices, self.dev_set_labels)
         log_resp = np.log(prob + DEL)
         return log_prob_norm, log_resp
 
@@ -87,29 +93,32 @@ class SemiBMM:
         return prob
 
 
-    def fit_predict(self,X, dev_set_indices,dev_set_labels):
+    def fit_predict(self,X, dev_set_indices,dev_set_labels,evaluate):
         prob = self.initalization(X)
-        self.dev_set_indices = dev_set_indices
-        self.dev_set_labels = dev_set_labels
+        self.dev_set_indices = np.array(dev_set_indices)
+        self.dev_set_labels = np.array(dev_set_labels)
         convergence = ConvergenceMeter(20, 1e-6, diff_fn=lambda a, b: np.linalg.norm(a - b))
         while not convergence.is_converged:
             self.M_step(X,prob)
             prob = self.E_step(X)
             convergence.offer(prob)
+        if evaluate:
+            prob = self.E_step(X,evaluate)
         return prob
 
 
-    def E_step(self,X):
-        prob_new = np.zeros(shape=(X.shape[0],self.K))
+    def E_step(self,X,evaluate=False):
+        prob = np.zeros(shape=(X.shape[0],self.K))
         pi_mul_P = []
         for i in range(self.K):
             pi_mul_P.append(self.pi[i]*pmf_bernoulli(X,self.mu[i]))
         pi_mul_P_sum = np.sum(pi_mul_P,axis=0)
         for i in range(self.K):
-            prob_new[:,i] = pi_mul_P[i]/pi_mul_P_sum
+            prob[:,i] = pi_mul_P[i]/pi_mul_P_sum
 
-        prob_new = update_prob_using_dev_set(prob_new,self.dev_set_indices,self.dev_set_labels)
-        return prob_new
+        prob = update_prob_using_mapping(prob, self.dev_set_indices, self.dev_set_labels,evaluate)
+        prob = set_prob_dev_values(prob, self.dev_set_indices, self.dev_set_labels)
+        return prob
 
 
     def M_step(self,X, prob):

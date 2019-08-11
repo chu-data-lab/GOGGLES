@@ -48,18 +48,19 @@ def n_given_sum(n_class,n_sum,n_max,x_0):
 class DevSetTheory:
     def __init__(self,d_matrix):
         self.D_matrix = d_matrix
+        self.K = d_matrix.shape[0]
         self.n=100
         self.alpha_list, self.p_alpha_list= self.p_alphas()
         self.d_alpha = self.alpha_list[1]-self.alpha_list[0]
 
     def log_likelihood(self,acc):
         log_L = 0
-        for i in range(d.shape[0]):
-            for j in range(d.shape[0]):
+        for i in range(self.K):
+            for j in range(self.K):
                 if i == j:
-                    log_L += d[i,j]*np.log(acc)
+                    log_L += self.D_matrix[i,j]*np.log(acc)
                 else:
-                    log_L += d[i,j]*np.log(1-acc)
+                    log_L += self.D_matrix[i,j]*np.log(1-acc)
         return log_L
 
     def P_d(self):
@@ -100,16 +101,15 @@ class DevSetTheory:
 
 
     def p_one_dim(self,acc,i_dim):
-        n_class = self.D_matrix.shape[0]
-        dev_size = np.sum(self.D_matrix[i_dim, :])
-        x_0_min = int(math.ceil((dev_size + n_class - 1) / n_class))
+        dev_size = int(np.sum(self.D_matrix[i_dim, :]))
+        x_0_min = int(math.ceil((dev_size + self.K - 1) / self.K))
 
         def p(x_0):
-            y_sum = n_class * x_0 - dev_size - (n_class - 1)
+            y_sum = self.K * x_0 - dev_size - (self.K - 1)
 
             return math.factorial(dev_size) / math.factorial(x_0) * math.exp(
-                math.log(acc) * x_0 + math.log((1 - acc) / (n_class - 1)) * (dev_size - x_0)) * \
-                   n_given_sum(n_class - 1, y_sum, x_0 - 1, x_0)
+                math.log(acc) * x_0 + math.log((1 - acc) / (self.K - 1)) * (dev_size - x_0)) * \
+                   n_given_sum(self.K - 1, y_sum, x_0 - 1, x_0)
 
         prob = 0
         for x_0 in range(x_0_min, dev_size + 1):
@@ -128,7 +128,7 @@ class DevSetTheory:
             alpha = self.alpha_list[i]
             p_alpha = self.p_alpha_list[i]
             pl = 1
-            for i_dim in range(self.D_matrix.shape[0]):
+            for i_dim in range(self.K):
                 pl*=self.p_one_dim(alpha, i_dim)
             p = p + pl*p_alpha*self.d_alpha
         p = np.clip(p,0,1)
@@ -136,8 +136,8 @@ class DevSetTheory:
 
 
 if __name__ == "__main__":
-    d = generate_d_matrix(10,0.77,2)
-    theory = DevSetTheory(d)
+    d_matrix = generate_d_matrix(10,0.77,2)
+    theory = DevSetTheory(d_matrix)
     acc_greater = theory.p_acc_greater(0.7)
     ps = theory.p_alpha_list
     print(acc_greater)

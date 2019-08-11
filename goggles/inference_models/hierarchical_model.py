@@ -4,7 +4,7 @@ from tqdm import tqdm
 from goggles.affinity_matrix_construction.construct import construct_affinity_matrices
 
 
-def infer_labels(affinity_matrix_list, dev_set_indices, dev_set_labels):
+def infer_labels(affinity_matrix_list, dev_set_indices, dev_set_labels,evaluate=True):
     """
     Generate labels by a hierarchical inference model
     :param affinity_matrix_list:
@@ -19,11 +19,11 @@ def infer_labels(affinity_matrix_list, dev_set_indices, dev_set_labels):
         LPs.append(lp)
     LPs_array = np.hstack(LPs)
     ensemble_model = SemiBMM(n_components=n_classes)
-    predicted_labels = ensemble_model.fit_predict(LPs_array,dev_set_indices,dev_set_labels)
+    predicted_labels = ensemble_model.fit_predict(LPs_array,dev_set_indices,dev_set_labels,evaluate)
     return predicted_labels
 
 
-def generate_labels(path_to_images,dev_set_indices, dev_set_labels):
+def generate_labels(path_to_images,dev_set_indices, dev_set_labels, evaluate = True):
     """
     :param path_to_images: path to the folder where images need to be labeled
     :param dev_set_indices: list of indices of the images in the development set
@@ -31,8 +31,8 @@ def generate_labels(path_to_images,dev_set_indices, dev_set_labels):
     :return:
     """
     affinity_matrix_list = construct_affinity_matrices(path_to_images)
-    predicted_labels = infer_labels(affinity_matrix_list, dev_set_indices, dev_set_labels)
+    predicted_labels = infer_labels(affinity_matrix_list, dev_set_indices, dev_set_labels,evaluate)
     return predicted_labels
 
 if __name__ == "__main__":
-    print(generate_labels("",[1,2,3,4,5],[0,0,1,1,1]))
+    print(generate_labels("",[1,2,3,4,5,6,7,8,9,10],[0,0,0,0,0,1,1,1,1,1]))
