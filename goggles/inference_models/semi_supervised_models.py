@@ -98,12 +98,17 @@ class SemiBMM:
         self.dev_set_indices = np.array(dev_set_indices)
         self.dev_set_labels = np.array(dev_set_labels)
         convergence = ConvergenceMeter(20, 1e-6, diff_fn=lambda a, b: np.linalg.norm(a - b))
+        n_inter = 0
+        max_inter = 200
         while not convergence.is_converged:
-            self.M_step(X,prob)
+            if n_inter > max_inter:
+                break
+            self.M_step(X, prob)
             prob = self.E_step(X)
             convergence.offer(prob)
+            n_inter+=1
         if evaluate:
-            prob = self.E_step(X,evaluate)
+            prob = self.E_step(X, evaluate)
         return prob
 
 
