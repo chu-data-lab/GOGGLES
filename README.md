@@ -2,30 +2,18 @@
 
 GOGGLES is a system for automatically generating probabilistic labels for image datasets based on the affinity coding paradigm. The paper can be found at https://arxiv.org/abs/1903.04552
 
-## Installation and Setup
+## Installation
 
-### Setup dependencies
 ```bash
-pip install -r requirements.txt
-```
-
-### Download the data
-```bash
-bash tools/get_cub_dataset.sh _scratch
+pip install https://github.com/chu-data-lab/GOGGLES/tree/dev
 ```
 
 ## Example Usage
-See the default configuration:
-
 ```bash
-python goggles/train.py print_config
+from goggles import generate_labels
+path_to_images = "data/images"
+dev_set_indices = [1,10,11,25] #indices of images in the development set
+dev_set_labels = [0,0,1,1] #the coresponding labels 
+labels = generate_labels(path_to_images,dev_set_indices,dev_set_labels)
 ```
 
-Run a training experiment:
-```bash
-python goggles/train.py with \
-  dataset=cub \
-  filter_class_ids=14,90 \
-  num_epochs=25000 \
-  loss_lambda=0.01
-```
