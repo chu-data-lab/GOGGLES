@@ -47,6 +47,10 @@ def n_given_sum(n_class,n_sum,n_max,x_0):
 
 class DevSetTheory:
     def __init__(self,d_matrix):
+        """
+        :param d_matrix: a 2-d numpy array, D_matrix[i,j] is the number of instances
+        of the ith class that falls into the jth cluster
+        """
         self.D_matrix = d_matrix
         self.K = d_matrix.shape[0]
         self.n=100
@@ -69,6 +73,7 @@ class DevSetTheory:
         for acc in np.linspace(1e-6, 1-1e-6,self.n):
             P+=prior.pdf(acc)*np.exp(self.log_likelihood(acc))*( 1 / self.n)
         return P
+
     def p_alphas(self):
         P_d_matrix = self.P_d()
         prior = beta(1, 1)
@@ -91,7 +96,6 @@ class DevSetTheory:
     def feasibility_test(self,epsilon = 0.7):
         """
         The probability of the task being feasible
-        :param d_m: cluster-class matrix, each row corresponds to a class and each column corresponds to a cluster
         :param epsilon: threshold of the estimated accuracy that make the task considered to be feasible
         :return: the probability of feasibility
         """

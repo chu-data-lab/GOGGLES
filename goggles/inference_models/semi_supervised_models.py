@@ -5,6 +5,15 @@ import numpy as np
 DEL = 1e-300
 
 def update_prob_using_mapping(prob, dev_set_indices, dev_set_labels,evaluate=False):
+    """
+    rearrange the columns in the prob matrix so that the ith column represents the ith class
+    :param prob: NxK numpy array, probabilities of each example
+    (totaling N) belonging to each class (totaling K)
+    :param dev_set_indices: list of indices of the images in the development set
+    :param dev_set_labels: list of labels of the images in the development set
+    :param evaluate: evaluate the results or not.
+    :return: the updated prob matrix
+    """
     cluster_labels = np.argmax(prob, axis=1)
     dev_cluster_labels = cluster_labels[dev_set_indices]
     cluster_class_mapping = solve_mapping(dev_cluster_labels, dev_set_labels,evaluate)
@@ -13,6 +22,14 @@ def update_prob_using_mapping(prob, dev_set_indices, dev_set_labels,evaluate=Fal
 
 
 def set_prob_dev_values(prob, dev_set_indices, dev_set_labels):
+    """
+    hard set in prob the values of the instances in the dev set by their labels
+    :param prob: prob: NxK numpy array, probabilities of each example
+    (totaling N) belonging to each class (totaling K)
+    :param dev_set_indices: list of indices of the images in the development set
+    :param dev_set_labels: list of labels of the images in the development set
+    :return: the new prob matrix
+    """
     #prob[dev_set_indices, :] = 0
     #for i in range(len(dev_set_indices)):
     #    prob[dev_set_indices[i], dev_set_labels[i]] = 1
@@ -20,11 +37,20 @@ def set_prob_dev_values(prob, dev_set_indices, dev_set_labels):
 
 
 
-def pmf_bernoulli(s,mu):
-    return np.exp(np.sum(s*np.log(mu+DEL)+(1-s)*np.log(1-mu+DEL),axis=1))
+def pmf_bernoulli(X,mu):
+    """
+    probability mass function of the multi-variate bernoulli distribution
+    :param X: data, a NxM numpy array
+    :param mu: parameter of the bernoulli distribution, a Mx1 numpy array
+    :return: probability of every row in X, a NX1 numpy array
+    """
+    return np.exp(np.sum(X*np.log(mu+DEL)+(1-X)*np.log(1-mu+DEL),axis=1))
 
 
 class ConvergenceMeter:
+    """
+    meter for convergence
+    """
     def __init__(self, num_converged, rate_threshold,
                  diff_fn=lambda a, b: abs(a - b)):
         self._num_converged = num_converged
@@ -60,11 +86,25 @@ class SemiGMM(GaussianMixture):
             n_components=n_components, covariance_type = covariance_type,tol=tol,reg_covar=reg_covar)
 
     def fit(self, X, dev_set_indices,dev_set_labels):
+        """
+        :param X: data, a NxM numpy array
+        :param dev_set_indices: list of indices of the images in the development set
+        :param dev_set_labels: list of labels of the images in the development set
+        :return:
+        """
         self.dev_set_indices = np.array(dev_set_indices)
         self.dev_set_labels = np.array(dev_set_labels)
         return super(SemiGMM, self).fit(X)
 
     def fit_predict(self,X, dev_set_indices,dev_set_labels):
+        """
+        fit a gmm and predict the class labels for all instances
+        :param X: data, a NxM numpy array
+        :param dev_set_indices: list of indices of the images in the development set
+        :param dev_set_labels: list of labels of the images in the development set
+        :return: probability of each instance (totaling N) belonging to each class (totaling K),
+         a N X K numpy array
+        """
         self.fit(X, dev_set_indices,dev_set_labels)
         return self.predict_proba(X)
 
@@ -94,6 +134,15 @@ class SemiBMM:
 
 
     def fit_predict(self,X, dev_set_indices,dev_set_labels,evaluate):
+        """
+        fit a gmm and predict the class labels for all instances
+        :param X: data, a NxM numpy array
+        :param dev_set_indices: list of indices of the images in the development set
+        :param dev_set_labels: list of labels of the images in the development set
+        :param evaluate: If true, performs feasibility test and dev set sufficiency test
+        :return: probability of each instance (totaling N) belonging to each class (totaling K),
+         a N X K numpy array
+        """
         prob = self.initalization(X)
         self.dev_set_indices = np.array(dev_set_indices)
         self.dev_set_labels = np.array(dev_set_labels)

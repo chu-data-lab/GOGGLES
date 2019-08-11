@@ -7,9 +7,10 @@ from goggles.affinity_matrix_construction.construct import construct_affinity_ma
 
 def infer_labels(affinity_matrix_list, dev_set_indices, dev_set_labels,seed=0,evaluate=True):
     """
-    Generate labels by a hierarchical inference model
+    infer labels by a hierarchical inference model
     :param affinity_matrix_list:
-    :param dev_set:
+    :param dev_set_indices: list of indices of the images in the development set
+    :param dev_set_labels: list of labels of the images in the development set
     :return:
     """
     random.seed(seed)
@@ -28,10 +29,12 @@ def infer_labels(affinity_matrix_list, dev_set_indices, dev_set_labels,seed=0,ev
 
 def generate_labels(path_to_images,dev_set_indices, dev_set_labels, seed = 0,evaluate = True):
     """
+    generate labels for images
     :param path_to_images: path to the folder where images need to be labeled
     :param dev_set_indices: list of indices of the images in the development set
     :param dev_set_labels: list of labels of the images in the development set
-    :return:
+    :return: probability of each image (totaling N) belonging to each class (totaling K),
+         a N X K numpy array
     """
     random.seed(seed)
     np.random.seed(seed)
@@ -41,4 +44,4 @@ def generate_labels(path_to_images,dev_set_indices, dev_set_labels, seed = 0,eva
 
 
 if __name__ == "__main__":
-    print(generate_labels("",[1,2,3,4,5,6,7,8,9,10],[0,0,0,0,0,1,1,1,1,1],seed=0))
+    labels = generate_labels("",[1,2,3,4,5,6,7,8,9,10],[0,0,0,0,0,1,1,1,1,1],seed=0)
