@@ -1,8 +1,9 @@
 import numpy as np
 
+
 def construct_affinity_matrices(path_to_image_foler=""):
     """
-    :param path_to_image_foler: path to the folder where images need to be labeled
+    :param path_to_image_folder: path to the folder where images need to be labeled
     :return: a list of affinity matrices
     """
     matrix_list = []
