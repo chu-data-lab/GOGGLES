@@ -2,3 +2,6 @@ numpy
 tqdm
 scikit-learn
 scipy
+PIL
+torch
+torchvision
