@@ -1,4 +1,5 @@
 numpy
+pandas
 tqdm
 scikit-learn
 scipy
