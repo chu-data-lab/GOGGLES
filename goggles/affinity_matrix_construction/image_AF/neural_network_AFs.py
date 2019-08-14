@@ -69,10 +69,12 @@ def _get_most_activated_patch_idxs_from_channels(z, channel_idxs):
         z[channel_idxs].view(k, -1).max(1)[1]
 
     l = list(most_activated_patch_idxs.cpu().numpy())
-    d = {p: k - i - 1 for i, p in enumerate(reversed(l))}
-    u = sorted(d.keys(), key=lambda p:d[p])
-    r = [d[p] for p in u]
-
+    d_ = {p: k - i - 1 for i, p in enumerate(reversed(l))}
+    d = [(k - i - 1, p) for i, p in enumerate(reversed(l))]
+    d = list(sorted(d))
+    r,u = list(zip(*d))
+    #u = sorted(d.keys(), key=lambda p:d[p])
+    #r = [d[p] for p in u]
     return _make_cuda(torch.LongTensor(u)), \
         _make_cuda(torch.LongTensor(r))
 
