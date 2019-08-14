@@ -2,6 +2,6 @@ numpy
 tqdm
 scikit-learn
 scipy
-PIL
+Pillow
 torch
 torchvision
