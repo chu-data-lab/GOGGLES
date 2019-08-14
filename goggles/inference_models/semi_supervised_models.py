@@ -94,7 +94,7 @@ class SemiGMM(GaussianMixture):
         """
         self.dev_set_indices = np.array(dev_set_indices)
         self.dev_set_labels = np.array(dev_set_labels)
-        return super(SemiGMM, self).fit(X)
+        return super().fit(X)
 
     def fit_predict(self,X, dev_set_indices,dev_set_labels):
         """
