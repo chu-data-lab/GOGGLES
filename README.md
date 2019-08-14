@@ -11,5 +11,5 @@ pip install .
 ```
 
 ## Example Usage
-please refer to the tutorial
+please refer to the tutorials in goggles/tutorials
 
