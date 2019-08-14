@@ -7,7 +7,7 @@ GOGGLES is a system for automatically generating probabilistic labels for image 
 ```bash
 git clone https://github.com/chu-data-lab/GOGGLES.git
 cd GOGGLES
-pip install .
+pip3 install .
 ```
 
 ## Example Usage
