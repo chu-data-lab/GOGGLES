@@ -2,7 +2,7 @@ from goggles.inference_models.semi_supervised_models import SemiGMM,SemiBMM
 import numpy as np
 from tqdm import tqdm
 import random
-from goggles.affinity_matrix_construction.construct import construct_affinity_matrices
+from goggles.affinity_matrix_construction.construct import construct_image_affinity_matrices
 
 
 def infer_labels(affinity_matrix_list, dev_set_indices, dev_set_labels,seed=0,evaluate=True):
@@ -38,10 +38,11 @@ def generate_labels(path_to_images,dev_set_indices, dev_set_labels, seed = 0,eva
     """
     random.seed(seed)
     np.random.seed(seed)
-    affinity_matrix_list = construct_affinity_matrices(path_to_images)
+    affinity_matrix_list = construct_image_affinity_matrices(path_to_images)
     predicted_labels = infer_labels(affinity_matrix_list, dev_set_indices, dev_set_labels,seed,evaluate)
     return predicted_labels
 
 
 if __name__ == "__main__":
+
     labels = generate_labels("",[1,2,3,4,5,6,7,8,9,10],[0,0,0,0,0,1,1,1,1,1],seed=0)

@@ -46,6 +46,9 @@ def n_given_sum(n_class,n_sum,n_max,x_0):
 
 
 class DevSetTheory:
+    """
+    development set theory
+    """
     def __init__(self,d_matrix):
         """
         :param d_matrix: a 2-d numpy array, D_matrix[i,j] is the number of instances
