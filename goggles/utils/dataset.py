@@ -15,7 +15,7 @@ class GogglesDataset(Dataset):
             if ext.lower() not in valid_images:
                 continue
             self.images_filename_list.append(f)
-
+        self.images_filename_list = list(sorted(self.images_filename_list))
         if transform is not None:
             self._transform = transform
         else:
@@ -40,7 +40,7 @@ class GogglesDataset(Dataset):
         return len(self.images_filename_list)
 
     @classmethod
-    def load_all_data(cls, root_dir, input_image_size):
+    def load_all_data(cls, root_dir, input_image_size=224):
         try:
             transform_resize = transforms.Resize(
                 (input_image_size, input_image_size))
