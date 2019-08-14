@@ -69,7 +69,7 @@ def _get_most_activated_patch_idxs_from_channels(z, channel_idxs):
         z[channel_idxs].view(k, -1).max(1)[1]
 
     l = list(most_activated_patch_idxs.cpu().numpy())
-    d_ = {p: k - i - 1 for i, p in enumerate(reversed(l))}
+    #d_ = {p: k - i - 1 for i, p in enumerate(reversed(l))}
     d = [(k - i - 1, p) for i, p in enumerate(reversed(l))]
     d = list(sorted(d))
     r,u = list(zip(*d))
@@ -102,38 +102,38 @@ def _get_score_matrix_for_image(image_idx, num_max_proposals, context):
 
 
 def nn_AFs(dataset,layer_idx, num_max_proposals,cache=False):
-    print('loading model...')
-    model = _make_cuda(Vgg16())
-
-    context = Context(
-        model=model,
-        dataset=dataset,
-        layer_idx=layer_idx)
-    if cache:
-        out_filename = '.'.join([
-            'v2',
-            f'vgg16_layer{layer_idx:02d}',
-            f'k{num_max_proposals:02d}',
-            'scores.npz'])
-        out_dirpath = os.path.join(SCRATCH_DIR, 'scores')
-        os.makedirs(out_dirpath, exist_ok=True)
-        out_filepath = os.path.join(out_dirpath, out_filename)
-
-        print('saving output to %s' % out_filepath)
     affinity_matrix_list = [[] for _ in range(num_max_proposals)]
-    all_column_ids = list()
+    out_filename = '.'.join([
+        'v2',
+        f'vgg16_layer{layer_idx:02d}',
+        f'k{num_max_proposals:02d}',
+        'scores.npz'])
+    out_dirpath = os.path.join(SCRATCH_DIR, 'scores')
+    os.makedirs(out_dirpath, exist_ok=True)
+    out_filepath = os.path.join(out_dirpath, out_filename)
+    if cache:
+        try:
+            affinity_matrix_arr = np.load(out_filepath)['scores']
+            for i in range(num_max_proposals):
+                affinity_matrix_list[i] = (np.squeeze(affinity_matrix_arr[i,:,:]))
+            return affinity_matrix_list
+        except:
+            pass
+    model = _make_cuda(Vgg16())
+    context = Context(model=model, dataset=dataset, layer_idx=layer_idx)
+    #all_column_ids = list()
     for image_idx in trange(len(context.dataset)):
         scores, cols = _get_score_matrix_for_image(
             image_idx, num_max_proposals, context)
         for i in range(min(num_max_proposals,scores.shape[1])):
             affinity_matrix_list[i].append(scores[:,i])
-        #all_scores_matrix = np.concatenate(
-        #    (all_scores_matrix, scores), axis=1)
-        all_column_ids += cols
-        #np.savez(
-        #    out_filepath, version=2,
-        #    scores=all_scores_matrix, cols=all_column_ids,
-        #    num_max_proposals=num_max_proposals)
+        #all_column_ids += cols
     for i in range(num_max_proposals):
         affinity_matrix_list[i] = np.array(affinity_matrix_list[i]).T
+    if cache:
+        print('saving output to %s' % out_filepath)
+        np.savez(
+           out_filepath, version=2,
+           scores=np.array(affinity_matrix_list),
+           num_max_proposals=num_max_proposals)
     return affinity_matrix_list
