@@ -15,4 +15,8 @@ pip3 install .
 
 ## Example Usage
 please refer to the tutorials in goggles/tutorials
+```bash
+cd goggles/tutorials/intro
+jupyter-notebook
+```
 
